@@ -1,0 +1,65 @@
+---
+title: "Analysis workflow example: RNA-seq data" 
+output: html_notebook
+---
+
+<br/>
+
+####In this tutorial, our objectives are to:
+  1. Download RNA-seq files from GEO
+  2. Annotate the samples
+  3. Calculate expression as read counts/million (CPM) and log2(CPM)
+  4. Filter out genes with low expression and plot 
+  5. Normalize the filtered expression data and plot
+  6. Perform unsupervised clustering of expression data
+  7. Perform differential expression analysis
+  8. Create heatmaps and volcano plots
+  9. Perform Gene Set Enrichment Analysis (GSEA) 
+
+<br/>
+
+#####Install latest version of Bioconductor and packages used in workshop
+
+Warning: some of these can take a long time!
+
+Notes:
+
+* If asked "Update all/some/none?", select all [a].  
+* If asked "Do you want to install from sources the package which needs compilation?", select Yes [y]
+* Lazy loading errors can be ignored, as can warnings about the version of R packages were built under.
+* If asked to restart R, I recommend that you do so (unless this gives you errors, then it's OK to say no on the second try).
+
+
+```{r message=FALSE, results="hide"}
+
+if (!requireNamespace("BiocManager"))
+    install.packages("BiocManager")
+BiocManager::install(update = TRUE, ask = FALSE)
+
+## install all packages
+
+pkgs <- c("GEOquery","org.Mm.eg.db","GenomeInfoDbData","TxDb.Mmusculus.UCSC.mm10.knownGene","Mus.musculus","BiocStyle","limma","edgeR","RColorBrewer","gplots","gage","pathview")
+
+BiocManager::install(pkgs, update = TRUE, ask = FALSE)
+
+## make sure all packages can be loaded
+
+for(package in pkgs) {
+  do.call("library", list(package))
+}
+```
+To find package citations, you can use the `citation()` function with package name as the argument, e.g. `citation("GEOquery")`.  
+
+<br/>
+
+#####Install and load knitr (for R notebook users)
+
+Notes:  
+
+* If asked to restart R, say No.
+* You can ignore the message "Error in install.packages : Updating loaded packages". This just means you already have it installed/loaded. 
+
+```{r message=FALSE}
+install.packages("knitr")
+library(knitr)
+```

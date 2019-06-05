@@ -1,0 +1,154 @@
+---
+output: html_notebook
+---
+
+####*Objective 7. Perform differential expression analysis*
+
+<br/>
+Packages used in this notebook: `limma`, `RColorBrewer`. First verify that they are installed and loaded.
+```{r message=FALSE, echo=FALSE}
+## Defining install_load function - adapted from: https://gitlab.com/iembry/install.load
+install_load <- function(package1, ...) {   
+   # convert arguments to vector
+   packages <- c(package1, ...)
+   # start loop to determine if each package is installed
+   for(package in packages) {
+       # if package is installed, just load it
+       if(package %in% (BiocManager::available()))
+          do.call('library', list(package))
+       # if package is not installed locally, download, then load
+       else {
+          BiocManager::install(package)
+          do.call("library", list(package))
+       }
+   }    
+}
+install_load("limma","RColorBrewer")
+```
+
+<br/>
+Set the directory where you want the results to be stored (this assumes that you have a folder called _RNAseq_ on your desktop, with a subfolder called _Results_). 
+```{r setup}
+## if you ARE using an R notebook (if not the comment out this line):
+knitr::opts_knit$set(root.dir = "~/Desktop/RNAseq/Results/") 
+
+## if you ARE NOT using an R notebook (un-comment this line):
+#setwd("~/Desktop/RNAseq/Results/") 
+```
+
+<br/>
+Since clustering suggested there may be differences in sample groups, here we will be formally testing whether genes are differentially expressed between the groups.  
+First we need to do a little set-up which involves creating design and contrast matrices.
+
+<br/>
+Let's make a design matrix with groups to be compared (this makes dummy variables for each sample indicating which group they belong to). We can do this with the `model.matrix()` function from the `stats` package.
+```{r}
+?model.matrix
+grps
+design <- model.matrix(~0 + grps)
+design
+```
+
+<br/>
+Now we'll just relable the columns.
+```{r}
+colnames(design) <- gsub("grps", "", colnames(design))
+design
+```
+
+<br/>
+We also need a contrast matrix to indicate which groups to compare to each other (reference group has a value of 1, comparison group has a value of -1). The `makeContrasts()` function is from the `limma` package.
+
+```{r}
+?makeContrasts
+
+contrast <- makeContrasts(
+   BasalvsLP = Basal - LP, 
+   BasalvsML = Basal - ML, 
+   LPvsML = LP - ML, 
+   levels = colnames(design))
+contrast
+```
+
+<br/>
+Now we use `voom()` from `limma` to combine log2(CPM) values from the filtered, normalized data with the design matrix.
+```{r}
+?voom
+
+dge_voom <- voom(dge_sub_norm, design)
+dge_voom
+```
+
+<br/>
+Now we can put this into a linear model where the groups are compared separately for each gene using `lmFit()` from `limma`.
+```{r}
+?lmFit
+dge_fit <- lmFit(dge_voom, design)
+```
+
+<br/>
+Next we'll use the contrast matrix created above so we can compare the groups to each other (this is what we care about the most).
+```{r}
+?contrasts.fit
+grp_fit <- contrasts.fit(dge_fit, contrasts=contrast)
+```
+
+
+<br/>
+Notice that these grp_fit coefficients are equal to the differences between the coefficients from the dge_fit model above.
+```{r}
+head(dge_fit$coefficients)
+head(grp_fit$coefficients)
+```
+
+<br/>
+Finally, we use an empirical Bayes method to use information across all genes- this should make the residual variances independent of the expression levels. The `eBayes()` function is also from `limma`.
+```{r}
+?eBayes
+efit <- eBayes(grp_fit)
+efit
+```
+
+<br/>
+Just to make sure the eBayes method worked, we can plot the average expression vs. the residual variance (there should be no correlation).
+```{r}
+?plotSA
+plotSA(efit, main="Mean−variance trend")
+```
+**Question:** Would you exclude any genes based on this plot?  
+
+<br/>
+Now we can find out how many genes are significantly different between the groups.
+```{r}
+?decideTests
+summary(decideTests(efit))
+```
+
+<br/>
+And we can find the most significant genes (e.g. top 10). The F statistic reflects the magnitude of the overall group differences, and the adjusted p-value corrects for multiple comparisons. It is possible to look at overall statistics for the three contrasts, but we will take a look at the top 10 genes for each contrast one at a time (i.e. Basal vs. LP, Basal vs. ML, LP vs. ML) by using the coef argument.  
+```{r}
+?topTable
+
+## look at top 10 overall by F statistics/p-values
+topTableF(efit, number=10) 
+
+names(efit)
+efit$contrasts
+
+## Basal vs. LP (coef=1)
+topTable(efit, coef=1, number=10, sort.by="p")
+
+## Basal vs. ML (coef=2)
+topTable(efit, coef=2, number=10, sort.by="p")
+
+## LP vs. ML (coef=3)
+topTable(efit, coef=3, number=10, sort.by="p")
+```
+
+<br/>
+If you would like to save the results from the model above, including coefficients, test statistics and p-values, you can use the `write.fit()` function from the `limma` package. In this function, you need to specify if you want to adjust p-values for multiple comparisons (you should, and we will use "BH" here for Benjamini-Hochberg, to match what we did above with topTable, and with what we will do next with visualizations and GSEA). We will also indicate that we want to adjust p-values for each contrast.
+
+```{r}
+write.fit(efit, file="DEresults.txt", adjust="BH", method="separate")
+```
+

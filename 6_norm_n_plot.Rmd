@@ -1,0 +1,73 @@
+---
+output:
+  html_notebook:
+    df_print: paged
+---
+
+####*Objective 5. Normalize the filtered expression data and plot*
+
+<br/>
+Packages used in this notebook: `edgeR`, `RColorBrewer`. First verify that they are installed and loaded.
+```{r message=FALSE, echo=FALSE}
+## Defining install_load function - adapted from: https://gitlab.com/iembry/install.load
+install_load <- function(package1, ...) {   
+   # convert arguments to vector
+   packages <- c(package1, ...)
+   # start loop to determine if each package is installed
+   for(package in packages) {
+       # if package is installed, just load it
+       if(package %in% (BiocManager::available()))
+          do.call('library', list(package))
+       # if package is not installed locally, download, then load
+       else {
+          BiocManager::install(package)
+          do.call("library", list(package))
+       }
+   }    
+}
+install_load("edgeR","RColorBrewer")
+```
+
+<br/>
+Now we should normalize the filtered expression data in case there were any issues with our samples. These values can go in the `norm.factors` column of the samples part of our filtered DGEList object `dge_sub`. 
+```{r}
+dge_sub$samples
+```
+
+<br/>
+There are a number of different packages that will do this (some may work better than others!), but we'll use the `calcNormFactors()` from the `edgeR` package.
+```{r}
+?calcNormFactors
+dge_sub_norm <- calcNormFactors(dge_sub, method = "TMM")
+dge_sub_norm$samples
+```
+
+<br/>
+Let's see what happens when we mess up the scale on the first 2 columns of the raw filtered counts (reduce counts by 5% for first sample, increase by 500% for second). We will then re-calculate the log2(CPM) values after doing this. This will better allow us to see the effects of the normalization in the plots below.
+
+```{r}
+dge_sub$counts[,1] <- dge_sub$counts[,1]*0.05
+dge_sub$counts[,2] <- dge_sub$counts[,2]*5
+
+log2cpm_unorm <- cpm(dge_sub, log=TRUE)
+log2cpm_norm <- cpm(dge_sub_norm, log=TRUE)
+```
+
+<br/>
+Now we can make side-by-side box plots to show the differences before and after normalization (especially for the two samples that we messed up intentionally).   
+```{r}
+par(mfrow=c(1,2))
+boxplot(log2cpm_unorm, 
+    las=2, 
+    col=col, 
+    main="")
+title(main="A. Unnormalized data",ylab="Log2(CPM)")
+
+boxplot(log2cpm_norm, 
+    las=2, 
+    col=col, 
+    main="")
+title(main="B. Normalized data",ylab="Log2(CPM)")
+```
+
+
