@@ -73,17 +73,40 @@ morecols <- colorRampPalette(mypalette)
 # Set up color vector for celltype variable
 col.cell <- c("honeydew4", "lightblue3", "lightcyan2")[c(dge$samples$group)]
 
-# Plot the heatmap
-png(filename="heatmap.png")
-heatmap <- heatmap.2(highly_variable_lcpm, col=rev(morecols(50)), trace="none",
-                    main="Top 500 most variable genes - ML v. LP v. Basal",
-                    ColSideColors=col.cell,scale="row",
-                    srtCol = 25,
-                    labRow = NA)
-dev.off()
-
+# view dendograms, heatmap
 plot(heatmap$colDendrogram)
 plot(heatmap$rowDendrogram)
+heatmap.2(highly_variable_lcpm, col=rev(morecols(50)),
+          trace = "none",
+          main = "Top 500 most variable genes - ML v. LP v. Basal",
+          keysize = 1.75,
+          key.title = "",
+          lwid = c(0.09, 0.4), # helps format the legend - arbitrary
+          ColSideColors = col.cell,scale="row",
+          srtCol = 25,
+          labRow = NA,
+          margins = c(8,8),
+          )
+```
+And here we write out the heatmap to a .png on our disk:
+```{r}
+# define filename
+png(filename="heatmap.png")
+#store heatmap as object in GlobalEnv
+heatmap <- heatmap.2(highly_variable_lcpm, col=rev(morecols(50)),
+                     trace = "none",
+                     main = "Top 500 most variable genes - ML v. LP v. Basal",
+                     keysize = 1.75,
+                     key.title = "",
+                     lwid = c(0.08, 0.4),
+                     ColSideColors = col.cell,scale="row",
+                     srtCol = 25,
+                     labRow = NA,
+                     margins = c(8,8),
+                     )
+# write out
+dev.off()
+#?heatmap.2
 ```
 This gives us a good overview of just how much variance is occuring between the LP, MP, and Basal groups. We can even see that in the "colDendogram" our LP and MP samples cluster together while the Basal group is split from those groups at a relatively high level. This makes the distance plots we saw earlier make a little more sense as we can clearly see that the LP and MP groups are much more similar to one another than the Basal group.
 
@@ -167,6 +190,10 @@ https://www.datanovia.com/en/lessons/determining-the-optimal-number-of-clusters-
 To conclude this heatmap section, the following page is an excellent resource that details some of the more specific functionality of `heatmap.2()`:
 https://bioinfo.umassmed.edu/bootstrappers/bootstrappers-courses/pastCourses/rCourse_2014-09/Session_6/Session_6.html
 
+And finally let it be known that limma has it's own heatmap function, but it isn't often used (at least in our experience):
+```{r}
+?coolmap
+```
 
 </br>
 
@@ -259,15 +286,9 @@ ML_v_LP_top <- tibble::rownames_to_column(ML_v_LP_top, "ENTREZID")
 ML_v_LP_top <- merge(gene_ids, ML_v_LP_top, by="ENTREZID", sort = F)
 ML_v_LP_top
 ```
-
-
 </br>
 
 ##### Some notes on volcano plots:  
-It is possible to refine this figure for publication within `limma `, but we'd recommend using the EnhancedVolcano package to generate publication-ready plots.
+It is possible to refine this figure for publication within `limma `, but we'd recommend using the EnhancedVolcano package to generate publication-ready (read: _fancier_) plots.
 
-In the interest of time, we won't be covering the EnhancedVolcano package for highly customizable plots. We will be introducing more advanced RNA-Seq content soon and this planned to be part of those notebooks. If you wish to give this a try yourself, see the following bioconductor vignette.
-
-https://bioconductor.org/packages/devel/bioc/vignettes/EnhancedVolcano/inst/doc/EnhancedVolcano.html
-
-Fair warning: it will take some data cleaning and restructuring to implement. If you'd like us at the DSI to take care of that for you, please let us know after the workshop. We will happily send you the advanced materials once they have been prepared and validated.
+In the interest of time, we won't be covering the EnhancedVolcano package for highly customizable plots. If you wish to give this a try yourself, see [this bioconductor vignette](https://bioconductor.org/packages/devel/bioc/vignettes/EnhancedVolcano/inst/doc/EnhancedVolcano.html). Fair warning: it will take some data cleaning and restructuring to implement.

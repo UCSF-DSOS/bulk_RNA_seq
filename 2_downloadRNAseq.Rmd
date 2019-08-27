@@ -7,7 +7,7 @@ output: html_notebook
 
 <br/>
 Packages used in this notebook: `GEOquery`, `edgeR`. First verify that these are installed and loaded.
-```{r message=FALSE, echo=FALSE}
+```{r message=FALSE, echo=FALSE, collapse=TRUE}
 ## Defining install_load function - adapted from: https://gitlab.com/iembry/install.load
 install_load <- function(package1, ...) {   
    # convert arguments to vector
