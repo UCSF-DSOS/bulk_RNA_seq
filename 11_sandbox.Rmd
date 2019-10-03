@@ -11,13 +11,15 @@ Welcome to the "sandbox" of the RNA-seq course. This is a notebook containing al
 
 This comment is a flag for experimentation. For example:
 
-```{r this chunk does nothing}
-### >>> TRY: setting x = 10
+```{r this example chunk does nothing}
+### >>> TRY: setting x <- [new number]
+# x <- 10
 x <- 4
 rm(x)
 ```
-
 Happy exploring!
+
+Note that *we recommend manipulating filtering, scaling, and normalization of the data* - edits like these are where you should see profound downstream effects in the analysis.
 
 ### Setup
 ```{r message=FALSE, echo=FALSE, collapse=TRUE}
@@ -105,12 +107,16 @@ log2_cpm <- cpm(dge, log=TRUE)
 ### Filter out low-read genes
 ```{r filtering genes with low intensity *edit to affect analysis*}
 ### >>> TRY: change filtering thresholds
+# dge_sub <- dge[rowSums(cpm>0.5)>=2, ]
 dge_sub <- dge[rowSums(cpm>1)>=3, ]
 ```
 
 Confused? Break this down!
 ```{r check thresholds *edit to explore filtering thresholds*}
-### >>> TRY: change filtering thresholds
+### >>> TRY: change filtering thresholds to directly observe differences in data
+#head(cpm)
+#head(rowSums(cpm>0.5))
+#head(rowSums(cpm>1)>=2)
 head(cpm)
 head(rowSums(cpm>1))
 head(rowSums(cpm>1)>=3)
@@ -127,6 +133,7 @@ nsamples <- ncol(dge_sub)
 col <- brewer.pal(nsamples, "Paired")
 col
 ### >>> TRY: use ?cpm to modify this function call
+#?cpm
 log2cpm_raw <- cpm(dge, log=TRUE)
 log2cpm_sub <- cpm(dge_sub, log=TRUE)
 ```
@@ -169,6 +176,8 @@ for (i in 2:nsamples){
 ### Normalize data
 ```{r introducing variance to demo normalization}
 # this normalizes the data
+# >>> # TRY: Try manipulating this normalizatin step
+#?calcNormFactors
 dge_sub_norm <- calcNormFactors(dge_sub, method = "TMM")
 
 # this code skews data to make the effects of normalization more noticable - would not be done in a real analysis
@@ -194,6 +203,7 @@ boxplot(log2cpm_norm,
     main="")
 title(main="B. Normalized data",ylab="Log2(CPM)")
 ```
+**Think:** Did these plots change with edits to the normalization step?
 
 ### Unsupervised clustering
 
@@ -213,6 +223,7 @@ plotMDS(log2cpm_norm,
     ylab="Log2(Fold-Change)")
 title(main="Sample groups")
 ```
+**Think:** Did these clusters change with edits to the normalization step?
 
 # >>> Analysis and visualization
 
@@ -246,7 +257,7 @@ efit
 ### plot mean-variance trend
 plotSA(efit, main="Mean−variance trend")
 ```
-**Think:** Would you exclude any genes based on this plot? 
+**Think:** Would you exclude any genes based on this plot? Recall course discussion.
 
 ```{r find significantly variable genes}
 summary(decideTests(efit))
@@ -316,6 +327,8 @@ top_500_clustered <- as.hclust(heatmapp$rowDendrogram)
 
 # define the clusters (essentially picking where to "cut"" the dendogram and select clusters)
 # cutree() returns a vector of cluster membership in the order of the original data rows
+### >>> TRY: edit cutree() call to change location where dendogram is cut
+#mycl <- cutree(top_500_clustered, h=max(40))
 mycl <- cutree(top_500_clustered, h=max(40))
 
 # examine it
@@ -341,15 +354,18 @@ head(gene_ids)
 top_diff_genes <- tibble::rownames_to_column(top_diff_genes, "ENTREZID")
 top_diff_genes <- merge(gene_ids, top_diff_genes, by="ENTREZID")
 head(top_diff_genes, n=10)
+```
 
-## EXAMPLE - view genes only in cluster 1
-### >>> TRY: edit cutree() call to change location where dendogram is cut
+```{r heatmap dendogram cluster-specific observations}
 mycl <- cutree(top_500_clustered, h=max(40))
 head(mycl[top_500_clustered$order], n=10)
 tail(mycl[top_500_clustered$order], n=10)
 
 # Now we'll grab a cluster
+### >>> TRY: changing cluster of interest
+#cluster1 <- highly_variable_lcpm[mycl == 2,]
 cluster1 <- highly_variable_lcpm[mycl == 1,]
+
 # as opposed to adding the cluster ID to the data, as we did previously.
 #cldat <- cbind(highly_variable_lcpm, clusterID=mycl)
 
@@ -379,6 +395,8 @@ head(top_diff_genes)
 ```
 
 ### Volcano plots
+
+> Note that this notebook gets a little difficult to edit from here on out. Enjoy!
 
 ```{r reshape data}
 ### Rehashing how to format data for volano plots (from notebooks 6, 7, 8)
