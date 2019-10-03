@@ -96,7 +96,7 @@ And here we write out the heatmap to a .png on our disk:
 # define filename
 png(filename="heatmap.png")
 #store heatmap as object in GlobalEnv
-heatmap <- heatmap.2(highly_variable_lcpm, col=rev(morecols(50)),
+heatmapp <- heatmap.2(highly_variable_lcpm, col=rev(morecols(50)),
                      trace = "none",
                      main = "Top 500 most variable genes - ML v. LP v. Basal",
                      keysize = 1.75,
@@ -115,7 +115,7 @@ This gives us a good overview of just how much variance is occuring between the 
 
 That said, it is admittedly a little difficult to select specific genes for analysis just from this... so let's pull out groups of interest from the heatmap:
 ```{r}
-top_500_clustered <- as.hclust(heatmap$rowDendrogram)
+top_500_clustered <- as.hclust(heatmapp$rowDendrogram)
 ```
 
 Creating dataframe of top 500 most variable genes, ranked and sorted:

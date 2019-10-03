@@ -100,6 +100,14 @@ head(rowSums(cpm>1)>=3)
 * Statistically-based (e.g. calculate coefficient of variation CV or adjusted p-values for each gene across samples, decide a-priori to remove genes outside of a certain range). 
 * Biologically-based (e.g. look at genes of interest).
 
+```{r}
+nsamples <- ncol(dge_sub)
+col <- brewer.pal(nsamples, "Paired")
+col
+log2cpm_raw <- cpm(dge, log=TRUE)
+log2cpm_sub <- cpm(dge_sub, log=TRUE)
+```
+
 ### Plot raw vs filtered data
 ```{r plot raw vs unfiltered}
 par(mfrow=c(1,2))
@@ -278,7 +286,7 @@ plot(heatmapp$rowDendrogram)
 ```
 
 ```{r heatmaps - exploring the dendogram}
-top_500_clustered <- as.hclust(heatmap$rowDendrogram)
+top_500_clustered <- as.hclust(heatmapp$rowDendrogram)
 
 # define the clusters (essentially picking where to "cut"" the dendogram and select clusters)
 # cutree() returns a vector of cluster membership in the order of the original data rows
@@ -425,7 +433,7 @@ ML_v_LP_top
 
 ### Geneset enrichment analysis
 
-```{r}
+```{r gsea}
 fold_lpml <- efit$coefficients[, "LPvsML"]
 
 kegg_mouse <- kegg.gsets(species="mmu", id.type="kegg")
