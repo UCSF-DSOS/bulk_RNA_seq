@@ -69,5 +69,3 @@ boxplot(log2cpm_norm,
     main="")
 title(main="B. Normalized data",ylab="Log2(CPM)")
 ```
-
-

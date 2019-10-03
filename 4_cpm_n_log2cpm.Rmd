@@ -37,7 +37,7 @@ knitr::opts_knit$set(root.dir = "~/Desktop/RNAseq/Data/")
 ```
 
 <br/>
-We will now convert the raw counts into counts per million (CPM). We will also be calculating log2 counts/million, log2(CPM), which will be what we primarly analyze. Note that sometimes other transformations of counts are used such as RPKM and FPKM, which account for gene length differences (shown in individual files). In this experiment, we only care about expression differences between the sample groups, and are assuming that expressed genes do not have different gene lengths overall (so we'll stick with CPM). 
+We will now convert the raw counts into counts per million (CPM). We will also be calculating log2 counts/million, log2(CPM), which will be what we primarly analyze. Note that sometimes other transformations of counts are used such as RPKM and FPKM, which account for gene length differences (shown in individual files). In this experiment, we only care about expression differences between the sample groups, and are assuming that expressed genes do not have different gene lengths overall (so we'll stick with CPM).
 
 <br/>
 Now let's take another look at part of the first raw file (which is tab-separated).
@@ -64,4 +64,3 @@ head(log2_cpm)
 View(dge)
 ```
 Note: when a raw count is zero, the `cpm()` function will add the average of the counts to avoid talking the log of zero, which is not a number. We'll be filtering these out anyway.
-

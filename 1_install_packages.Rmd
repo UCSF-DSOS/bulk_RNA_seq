@@ -52,7 +52,7 @@ To find package citations, you can use the `citation()` function with package na
 
 <br/>
 
-#####Install and load knitr (for R notebook users)
+##### Install and load knitr (for R notebook users)
 
 Notes:  
 

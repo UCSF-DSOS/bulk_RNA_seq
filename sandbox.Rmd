@@ -1,0 +1,454 @@
+---
+title: "RNAseq Sandbox"
+output: html_notebook
+---
+
+```{r message=FALSE, echo=FALSE, collapse=TRUE}
+## Defining install_load function - adapted from: https://gitlab.com/iembry/install.load
+install_load <- function(package1, ...) {   
+   # convert arguments to vector
+   packages <- c(package1, ...)
+   # start loop to determine if each package is installed
+   for(package in packages) {
+       # if package is installed, just load it
+       if(package %in% (BiocManager::available()))
+          do.call('library', list(package))
+       # if package is not installed locally, download, then load
+       else {
+          BiocManager::install(package)
+          do.call("library", list(package))
+       }
+   }    
+}
+install_load("GEOquery","org.Mm.eg.db","GenomeInfoDbData","TxDb.Mmusculus.UCSC.mm10.knownGene","Mus.musculus","BiocStyle","limma","edgeR","RColorBrewer","gplots","gage","pathview")
+```
+
+Set the directory where you want the data to be stored (this assumes that you have a folder called _RNAseq_ on your desktop, with a subfolder called _Data_). 
+```{r setup}
+## if you ARE using an R notebook (if not the comment out this line):
+knitr::opts_knit$set(root.dir = "~/Desktop/RNAseq/Data/") 
+
+## if you ARE NOT using an R notebook (un-comment this line):
+#setwd("~/Desktop/RNAseq/Data/") 
+```
+
+# >>> Downloading and prepping the data
+
+### Download data from GEO
+```{r download data}
+gse <- getGEOSuppFiles(GEO = "GSE63310", makeDirectory = TRUE)
+
+untar("./GSE63310/GSE63310_RAW.tar")
+
+files <- c("GSM1545535_10_6_5_11.txt", "GSM1545536_9_6_5_11.txt", "GSM1545538_purep53.txt", "GSM1545539_JMS8-2.txt", "GSM1545540_JMS8-3.txt", "GSM1545541_JMS8-4.txt", "GSM1545542_JMS8-5.txt", "GSM1545544_JMS9-P7c.txt", "GSM1545545_JMS9-P8c.txt")
+
+for(i in paste(files, ".gz", sep="")) {
+    gunzip(i, overwrite=TRUE)
+}
+
+f1 <- read.delim(files[1])
+
+dge <- readDGE(files, columns=c(1,3))
+dge
+```
+
+### Anotate data
+```{r annotate}
+dge$samples$group <- as.factor(c("LP", "ML", "Basal", "Basal", "ML", "LP", "Basal", "ML", "LP"))
+
+dge_ids <- rownames(dge)
+
+gene_ids <- select(org.Mm.eg.db, 
+    keys=dge_ids, 
+    keytype="ENTREZID",
+    columns=c("SYMBOL"))
+
+dge$gene_ids <- gene_ids
+```
+
+# >>> Processing and analyzing the data
+
+### Converting raw counts to CPM
+```{r}
+f1 <- read.delim(files[1])
+
+cpm <- cpm(dge)
+log2_cpm <- cpm(dge, log=TRUE)
+
+# Good place to stop and check that everything looks right
+#head(dge$counts)
+#head(cpm)
+#head(log2_cpm)
+#View(dge)
+```
+
+### Filter out low-read genes
+```{r filtering genes with low intensity *edit to affect analysis*}
+dge_sub <- dge[rowSums(cpm>1)>=3, ]
+```
+
+Confused? Break this down!
+```{r check thresholds *edit to explore filtering thresholds*}
+head(cpm)
+head(rowSums(cpm>1))
+head(rowSums(cpm>1)>=3)
+```
+
+**Think:** What are some ways to decide on the filtering criteria? How do you do it? What are the strengths and weaknesses of these options:   
+
+* Intensity-based (e.g. decide a-priori: if genes are not expressed in x% of samples, remove).  
+* Statistically-based (e.g. calculate coefficient of variation CV or adjusted p-values for each gene across samples, decide a-priori to remove genes outside of a certain range). 
+* Biologically-based (e.g. look at genes of interest).
+
+### Plot raw vs filtered data
+```{r plot raw vs unfiltered}
+par(mfrow=c(1,2))
+plot(density(log2cpm_raw[,1]),
+     col=col[1], 
+     lwd=2, 
+     ylim=c(0,0.21), 
+     las=2, 
+     main="", 
+     xlab="")
+title(main="A. Raw data", xlab="Log2(CPM)")
+abline(v=0, lty=3)
+
+for (i in 2:nsamples){
+    den <- density(log2cpm_raw[,i])
+    lines(den$x, den$y, col=col[i], lwd=2)
+}
+
+plot(density(log2cpm_sub[,1]), 
+    col=col[1], 
+    lwd=2, 
+    ylim=c(0,0.21), 
+    las=2, 
+    main="", 
+    xlab="")
+title(main="B. Filtered data", xlab="Log2(CPM)")
+abline(v=0, lty=3)
+
+for (i in 2:nsamples){
+    den <- density(log2cpm_sub[,i])
+    lines(den$x, den$y, col=col[i], lwd=2)
+}
+```
+**Think:** why is there that peak on the left side of the raw data? Recall the `cpm` function in chunk #6. Use `?cpm` - check input values and how they are handled by default.
+
+### Normalize data
+```{r narmalization *edit to affect analysis*}
+dge_sub_norm <- calcNormFactors(dge_sub, method = "TMM")
+
+dge_sub$counts[,1] <- dge_sub$counts[,1]*0.05
+dge_sub$counts[,2] <- dge_sub$counts[,2]*5
+
+log2cpm_unorm <- cpm(dge_sub, log=TRUE)
+log2cpm_norm <- cpm(dge_sub_norm, log=TRUE)
+```
+
+```{r plot normalized vs non-normaliezd data}
+par(mfrow=c(1,2))
+boxplot(log2cpm_unorm, 
+    las=2, 
+    col=col, 
+    main="")
+title(main="A. Unnormalized data",ylab="Log2(CPM)")
+
+boxplot(log2cpm_norm, 
+    las=2, 
+    col=col, 
+    main="")
+title(main="B. Normalized data",ylab="Log2(CPM)")
+```
+
+### Unsupervised clustering
+
+```{r clustering}
+### assign colors to groups
+grps <- dge_sub$samples$group
+col.grp <- grps
+levels(col.grp) <-  brewer.pal(nlevels(col.grp), "Set1")
+col.grp <- as.character(col.grp)
+
+### plotting via `plotMDS`
+par(mfrow=c(1,1))
+plotMDS(log2cpm_norm, 
+    labels=grps, 
+    col=col.grp,
+    xlab="Log2(Fold-Change)",
+    ylab="Log2(Fold-Change)")
+title(main="Sample groups")
+```
+
+# >>> Analysis and visualization
+
+### Differential expression analysis
+```{r differential expression}
+design <- model.matrix(~0 + grps)
+
+colnames(design) <- gsub("grps", "", colnames(design))
+
+### make contrast matrix
+contrast <- makeContrasts(
+   BasalvsLP = Basal - LP, 
+   BasalvsML = Basal - ML, 
+   LPvsML = LP - ML, 
+   levels = colnames(design))
+
+### VOOM
+dge_voom <- voom(dge_sub_norm, design)
+
+# fit linear model
+dge_fit <- lmFit(dge_voom, design)
+# compare groups using contrast matrix
+grp_fit <- contrasts.fit(dge_fit, contrasts=contrast)
+
+head(dge_fit$coefficients)
+head(grp_fit$coefficients)
+
+efit <- eBayes(grp_fit)
+efit
+
+### plot mean-variance trend
+plotSA(efit, main="Mean−variance trend")
+```
+**Think:** Would you exclude any genes based on this plot? 
+
+```{r find significantly variable genes}
+summary(decideTests(efit))
+```
+
+```{r top 10 genes by F statistics and pvals}
+
+## look at top 10 overall by F statistics/p-values
+topTableF(efit, number=10) 
+
+names(efit)
+efit$contrasts
+
+## Basal vs. LP (coef=1)
+topTable(efit, coef=1, number=10, sort.by="p")
+
+## Basal vs. ML (coef=2)
+topTable(efit, coef=2, number=10, sort.by="p")
+
+## LP vs. ML (coef=3)
+topTable(efit, coef=3, number=10, sort.by="p")
+
+### save results:
+#write.fit(efit, file="DEresults.txt", adjust="BH", method="separate")
+```
+
+### Visualize data
+
+```{r heatmaps}
+var_genes <- apply(log2cpm_norm, 1, var)
+
+# select top n number of variable genes
+select_var <- names(sort(var_genes, decreasing=TRUE))[1:500]
+
+highly_variable_lcpm <- log2cpm_norm[select_var,]
+
+## Get some nicer colors
+## to display brewer colors (use diverging colors in this instance): display.brewer.all()
+mypalette <- brewer.pal(11,"RdBu") 
+morecols <- colorRampPalette(mypalette)
+# Set up color vector for celltype variable
+col.cell <- c("honeydew4", "lightblue3", "lightcyan2")[c(dge$samples$group)]
+
+# png(filename="heatmap.png")
+heatmapp <- heatmap.2(highly_variable_lcpm, col=rev(morecols(50)),
+          trace = "none",
+          main = "Top 500 most variable genes - ML v. LP v. Basal",
+          keysize = 1.75,
+          key.title = "",
+          lwid = c(0.09, 0.4), # helps format the legend - arbitrary
+          ColSideColors = col.cell,scale="row",
+          srtCol = 25,
+          labRow = NA,
+          margins = c(8,8),
+          )
+# dev.off()
+
+heatmapp
+# view dendograms, heatmap
+
+plot(heatmapp$colDendrogram)
+plot(heatmapp$rowDendrogram)
+```
+
+```{r heatmaps - exploring the dendogram}
+top_500_clustered <- as.hclust(heatmap$rowDendrogram)
+
+# define the clusters (essentially picking where to "cut"" the dendogram and select clusters)
+# cutree() returns a vector of cluster membership in the order of the original data rows
+mycl <- cutree(top_500_clustered, h=max(40))
+
+# examine it
+#mycl
+
+# examine the head and tail of cluster membership by it's order in the heatmap
+head(mycl[top_500_clustered$order], n=10)
+tail(mycl[top_500_clustered$order], n=10)
+
+# you could either grab a cluster
+#cluster1 <- highly_variable_lcpm[mycl == 1,]
+
+# or simply add the cluster ID to your data. This is what we'll do.
+cldat <- cbind(highly_variable_lcpm, clusterID=mycl)
+
+# examine the data with cluster ids attached, and ordered like the heat map
+top_diff_genes <- as.data.frame(cldat[top_500_clustered$order,])
+
+# check is gene IDs table is still in memory:
+head(gene_ids)
+
+#use gene IDs to rename genes in hr...
+top_diff_genes <- tibble::rownames_to_column(top_diff_genes, "ENTREZID")
+top_diff_genes <- merge(gene_ids, top_diff_genes, by="ENTREZID")
+head(top_diff_genes, n=10)
+
+## EXAMPLE - view genes only in cluster 1
+mycl <- cutree(top_500_clustered, h=max(40))
+head(mycl[top_500_clustered$order], n=10)
+tail(mycl[top_500_clustered$order], n=10)
+
+# Now we'll grab a cluster
+cluster1 <- highly_variable_lcpm[mycl == 1,]
+# as opposed to adding the cluster ID to the data, as we did previously.
+#cldat <- cbind(highly_variable_lcpm, clusterID=mycl)
+
+top_diff_genes <- as.data.frame(cluster1)
+
+#use gene IDs to rename genes in hr...
+top_diff_genes <- tibble::rownames_to_column(top_diff_genes, "ENTREZID")
+top_diff_genes <- merge(gene_ids, top_diff_genes, by="ENTREZID")
+head(top_diff_genes, n=10)
+
+# And if we are interested in further dissecting genes by cluster, we may adjust where that threshold is as follows:
+
+mycl <- cutree(top_500_clustered,
+               h=max(20) # here is the line to edit in this case - sets the height at which to "cut" the dendogram
+               )
+
+head(mycl[top_500_clustered$order], n=10)
+tail(mycl[top_500_clustered$order], n=10)
+
+# This time we're adding the cluster assignment to the data to observe what this threshold adjustment actually accomplished
+cldat <- cbind(highly_variable_lcpm, clusterID=mycl)
+
+top_diff_genes <- as.data.frame(cldat[top_500_clustered$order,])
+top_diff_genes <- tibble::rownames_to_column(top_diff_genes, "ENTREZID")
+top_diff_genes <- merge(gene_ids, top_diff_genes, by="ENTREZID", sort = F)
+head(top_diff_genes)
+```
+
+### Volcano plots
+
+```{r reshape data}
+### Rehashing how to format data for volano plots (from notebooks 6, 7, 8)
+# start with our groups
+grps # this variable contains our groups of samples (ML, LP, Basal) - created in notebook #7 (unsupervised clustering)
+# creating design matrix (dummy variable creation for each sample and the group it belongs to)
+design <- model.matrix(~0 + grps)
+# relabeling columns
+colnames(design) <- gsub("grps", "", colnames(design))
+#creating contrast matrix
+contrast <- makeContrasts(
+   BasalvsLP = Basal - LP, 
+   BasalvsML = Basal - ML, 
+   LPvsML = LP - ML, 
+   levels = colnames(design))
+# Now we use `voom()` from `limma` to combine log2(CPM) values from the filtered, normalized data with the design matrix
+dge_voom <- voom(dge_sub_norm, design)
+# Using limma's lmfit() function - this is the linear model fit step
+dge_fit <- lmFit(dge_voom, design)
+# Using contrast matrix to compare the groups
+grp_fit <- contrasts.fit(dge_fit, contrasts=contrast)
+# Empirical Bayes method (limma) to use information across all genes - this should make the residual variances independent of the expression levels.
+efit <- eBayes(grp_fit)
+
+
+# convert gene IDs to Gene Symbols for easier interpretation
+efit_genes <- names(efit$Amean)
+efit_genes <- as.data.frame.AsIs(efit_genes)
+colnames(efit_genes) <- "ENTREZID"
+efit_genes <- merge(gene_ids, efit_genes, by="ENTREZID", sort = F)
+names(efit$Amean) <- efit_genes$SYMBOL
+```
+
+```{r plot volcanoplot}
+# basal vs lp
+volcanoplot(efit,
+            coef = 1,
+            style = "p-value",
+            highlight = 10,
+            names = names(efit$Amean),
+            hl.col="blue",
+            main = "Basal vs LP",
+            xlab = "Log2 Fold Change",
+            ylab = NULL,
+            pch=20,
+            cex=0.35)
+
+# basal vs ml
+volcanoplot(efit, coef = 2, style = "B-statistic", highlight = 10, names = names(efit$Amean), 
+            hl.col="blue",
+            main = "Basal vs ML", xlab = "Log2 Fold Change", ylab = NULL, pch=20, cex=0.35)
+
+# lp vs ml
+volcanoplot(efit,coef = 3, style = "p-value", highlight = 10, names = names(efit$Amean), 
+            hl.col="blue", 
+            main = "LP vs ML", xlab = "Log2 Fold Change", ylab = NULL, pch=20, cex=0.35)
+```
+
+```{r haetmap followup analysis}
+# top hits:
+BasalvLP_top <- topTable(efit, coef = 1, number = 10, sort.by = 'P')
+#BasalvLP_top
+
+# top hits:
+BasalvML_top <- topTable(efit, coef = 2, number = 10, sort.by = 'P')
+#BasalvML_top
+
+# top hits:
+ML_v_LP_top <- topTable(efit, coef = 3, number = 10, sort.by = 'P')
+#ML_v_LP_top
+
+# can convert gene IDs to Gene Symbols for easier interpretation
+ML_v_LP_top <- tibble::rownames_to_column(ML_v_LP_top, "ENTREZID")
+ML_v_LP_top <- merge(gene_ids, ML_v_LP_top, by="ENTREZID", sort = F)
+ML_v_LP_top
+
+
+```
+
+### Geneset enrichment analysis
+
+```{r}
+fold_lpml <- efit$coefficients[, "LPvsML"]
+
+kegg_mouse <- kegg.gsets(species="mmu", id.type="kegg")
+
+kegg_all = gage(exprs=fold_lpml, gsets=kegg_mouse$kg.sets, same.dir=TRUE)
+
+lapply(kegg_all, head)
+
+kegg_mouse$kg.sets[1] ## this is the first metabolic pathway (index=1)
+
+kegg_met <- kegg_mouse$kg.sets[kegg_mouse$met.idx] ## all metabolic pathways
+
+kegg_met = gage(exprs=fold_lpml, gsets=kegg_met, same.dir=TRUE)
+
+## extract KEGG ID and pathway name (first row name of the kegg_met$less data)
+op <- rownames(kegg_met$less)[1]
+op
+
+## extract the KEGG ID (this code removes everything after the first space from op)
+op_kegg <- sub(" .*$", "", op)
+op_kegg
+
+# plot pathway
+pathview(gene.data=fold_lpml, pathway.id=op_kegg, species="mmu")
+```
+
