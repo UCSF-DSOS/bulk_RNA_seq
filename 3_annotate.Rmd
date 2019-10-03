@@ -4,7 +4,6 @@ output: html_notebook
 
 ####*Objective 2. Annotate the samples*
 
-
 <br/>
 Packages used in this notebook: `edgeR`, `org.Mm.eg.db`. First verify that these are installed and loaded.
 ```{r message=FALSE, echo=FALSE}
@@ -68,8 +67,11 @@ The counts part of the DGEList contains gene names (ENTREZIDs) in rows and sampl
 ```{r}
 head(dge$counts)
 dge_ids <- rownames(dge)
-
+print("")
+print("Entrez IDs:")
 head(dge_ids)
+print("Number of elements (gene IDs):")
+length(dge_ids)
 ```
 
 <br/>
@@ -88,6 +90,7 @@ Now we can add these identifiers to the DGEList object in addition to the sample
 names(dge)
 dge$gene_ids <- gene_ids
 ```
+
 ```{r}
 names(dge)
 ```

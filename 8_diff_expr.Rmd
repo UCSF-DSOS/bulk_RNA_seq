@@ -58,7 +58,6 @@ design
 
 <br/>
 We also need a contrast matrix to indicate which groups to compare to each other (reference group has a value of 1, comparison group has a value of -1). The `makeContrasts()` function is from the `limma` package.
-
 ```{r}
 ?makeContrasts
 

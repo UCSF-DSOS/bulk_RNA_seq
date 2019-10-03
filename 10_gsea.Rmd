@@ -53,7 +53,7 @@ Note: you should look through the help file for `gage()` in addition to the vign
 
 ```{r}
 ?gage
-head(EFITE$coefficients)
+#head(EFITE$coefficients)
 
 fold_lpml <- efit$coefficients[, "LPvsML"]
 head(fold_lpml) ## Entrez IDs are retained from the coefficient matrix

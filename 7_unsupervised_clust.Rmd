@@ -27,7 +27,7 @@ install_load("limma","RColorBrewer")
 ```
 
 <br/>
-Set the directory where you want the results to be stored (this assumes that you have a folder called _RNAseq_ on your desktop, with a subfolder called _Results_). 
+Set the directory where you want the results to be stored (this assumes that you have a folder called _RNAseq_ on your desktop, with a subfolder called _Results_).
 ```{r setup}
 ## if you ARE using an R notebook (if not the comment out this line):
 knitr::opts_knit$set(root.dir = "~/Desktop/RNAseq/Results/") 
@@ -70,4 +70,3 @@ title(main="Sample groups")
 #dev.off()
 ```
 **Discussion:** What is this plot telling us?
-
