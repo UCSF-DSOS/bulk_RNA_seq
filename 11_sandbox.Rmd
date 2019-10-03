@@ -3,6 +3,23 @@ title: "RNAseq Sandbox"
 output: html_notebook
 ---
 
+### RNA-seq sandbox
+
+Welcome to the "sandbox" of the RNA-seq course. This is a notebook containing all of the course code with none of the explanation contained in the instructional materials. Use this as a space to manipulate variables, try different thresholds/values in the functions, etc. Please note that any chunks labeled "* boilerplate *" are best left untouched since manipulating values within this code will not yeild interesting results.
+
+> ### >>> TRY:
+
+This comment is a flag for experimentation. For example:
+
+```{r this chunk does nothing}
+### >>> TRY: setting x = 10
+x <- 4
+rm(x)
+```
+
+Happy exploring!
+
+### Setup
 ```{r message=FALSE, echo=FALSE, collapse=TRUE}
 ## Defining install_load function - adapted from: https://gitlab.com/iembry/install.load
 install_load <- function(package1, ...) {   
@@ -24,7 +41,7 @@ install_load("GEOquery","org.Mm.eg.db","GenomeInfoDbData","TxDb.Mmusculus.UCSC.m
 ```
 
 Set the directory where you want the data to be stored (this assumes that you have a folder called _RNAseq_ on your desktop, with a subfolder called _Data_). 
-```{r setup}
+```{r setup *boilerplate*}
 ## if you ARE using an R notebook (if not the comment out this line):
 knitr::opts_knit$set(root.dir = "~/Desktop/RNAseq/Data/") 
 
@@ -35,7 +52,7 @@ knitr::opts_knit$set(root.dir = "~/Desktop/RNAseq/Data/")
 # >>> Downloading and prepping the data
 
 ### Download data from GEO
-```{r download data}
+```{r download data *boilerplate*}
 gse <- getGEOSuppFiles(GEO = "GSE63310", makeDirectory = TRUE)
 
 untar("./GSE63310/GSE63310_RAW.tar")
@@ -53,7 +70,7 @@ dge
 ```
 
 ### Anotate data
-```{r annotate}
+```{r annotate *boilerplate*}
 dge$samples$group <- as.factor(c("LP", "ML", "Basal", "Basal", "ML", "LP", "Basal", "ML", "LP"))
 
 dge_ids <- rownames(dge)
@@ -69,10 +86,13 @@ dge$gene_ids <- gene_ids
 # >>> Processing and analyzing the data
 
 ### Converting raw counts to CPM
-```{r}
+```{r convert to cpm}
 f1 <- read.delim(files[1])
 
 cpm <- cpm(dge)
+
+### >>> TRY: use the help function to try different 
+# ?log2_cpm
 log2_cpm <- cpm(dge, log=TRUE)
 
 # Good place to stop and check that everything looks right
@@ -84,11 +104,13 @@ log2_cpm <- cpm(dge, log=TRUE)
 
 ### Filter out low-read genes
 ```{r filtering genes with low intensity *edit to affect analysis*}
+### >>> TRY: change filtering thresholds
 dge_sub <- dge[rowSums(cpm>1)>=3, ]
 ```
 
 Confused? Break this down!
 ```{r check thresholds *edit to explore filtering thresholds*}
+### >>> TRY: change filtering thresholds
 head(cpm)
 head(rowSums(cpm>1))
 head(rowSums(cpm>1)>=3)
@@ -104,6 +126,7 @@ head(rowSums(cpm>1)>=3)
 nsamples <- ncol(dge_sub)
 col <- brewer.pal(nsamples, "Paired")
 col
+### >>> TRY: use ?cpm to modify this function call
 log2cpm_raw <- cpm(dge, log=TRUE)
 log2cpm_sub <- cpm(dge_sub, log=TRUE)
 ```
@@ -141,15 +164,18 @@ for (i in 2:nsamples){
     lines(den$x, den$y, col=col[i], lwd=2)
 }
 ```
-**Think:** why is there that peak on the left side of the raw data? Recall the `cpm` function in chunk #6. Use `?cpm` - check input values and how they are handled by default.
+**Think:** why is there that peak on the left side of the raw data? Recall the `cpm` function in chunk #6. Use `?cpm` - check input values and how they are handled by default. You'll notice that if you manipulated the filtering steps above, these plots may have changed from what they showed in class. How to these differ?
 
 ### Normalize data
-```{r narmalization *edit to affect analysis*}
+```{r introducing variance to demo normalization}
+# this normalizes the data
 dge_sub_norm <- calcNormFactors(dge_sub, method = "TMM")
 
+# this code skews data to make the effects of normalization more noticable - would not be done in a real analysis
 dge_sub$counts[,1] <- dge_sub$counts[,1]*0.05
 dge_sub$counts[,2] <- dge_sub$counts[,2]*5
 
+# save datasets
 log2cpm_unorm <- cpm(dge_sub, log=TRUE)
 log2cpm_norm <- cpm(dge_sub_norm, log=TRUE)
 ```
@@ -285,7 +311,7 @@ plot(heatmapp$colDendrogram)
 plot(heatmapp$rowDendrogram)
 ```
 
-```{r heatmaps - exploring the dendogram}
+```{r heatmaps exploring the dendogram}
 top_500_clustered <- as.hclust(heatmapp$rowDendrogram)
 
 # define the clusters (essentially picking where to "cut"" the dendogram and select clusters)
@@ -317,6 +343,7 @@ top_diff_genes <- merge(gene_ids, top_diff_genes, by="ENTREZID")
 head(top_diff_genes, n=10)
 
 ## EXAMPLE - view genes only in cluster 1
+### >>> TRY: edit cutree() call to change location where dendogram is cut
 mycl <- cutree(top_500_clustered, h=max(40))
 head(mycl[top_500_clustered$order], n=10)
 tail(mycl[top_500_clustered$order], n=10)
