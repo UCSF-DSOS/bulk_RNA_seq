@@ -19,13 +19,10 @@ Branch "master" should function as intended if cloned, but for verified material
 
 #### *Please do not wait until the day of the workshop to do these installations*! We cannot spend class time working through installation issues.
 
-Installation instructions for this course are on our CLE RNA-seq webpage. If you have trouble with installations up until the day before the workshop, please email both Angelo and Karla:  
-
-- Angelo Pelonero: [angelo.pelonero@ucsf.edu](mailto:angelo.pelonero@ucsf.edu)
+Installation instructions for this course are on our CLE RNA-seq webpage. If you have trouble with installations up until the day before the workshop, please email bthe instructor: 
 
 - Karla Lindquist: [karla.lindquist@ucsf.edu](mailto:karla.lindquist@ucsf.edu)  
 
-Instructors will also be in the classroom half an hour before a workshop begins. However, this time will be for minor troubleshooting issues only. If you have major issues (or if you wait until this time to begin your installations) we cannot guarantee that you will be set up in time to follow along with the workshop.     
 
 # GitHub and UCSF data security protocols:
 
