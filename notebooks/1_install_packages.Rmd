@@ -1,0 +1,73 @@
+---
+title: "Bulk RNA-Seq Analysis - setup" 
+authors: "Karla Lindquist"
+date: "7/26/2021"
+output: html_notebook
+---
+
+------------------------------------------------------------------------
+
+#### Learning objectives
+
+1.  Download RNA-seq files from GEO
+2.  Annotate the samples
+3.  Calculate expression as read counts/million (CPM) and log2(CPM)
+4.  Filter out genes with low expression and plot
+5.  Normalize the filtered expression data and plot
+6.  Perform unsupervised clustering of expression data
+7.  Perform differential expression analysis
+8.  Create heatmaps and volcano plots
+9.  Perform enrichment and pathway analysis
+
+------------------------------------------------------------------------
+
+#### Install required packages
+
+Instructions and notes:
+
+-   Please make sure that you have *current* versions of R, Bioconductor, and RStudio installed.
+
+    -   [R](https://cran.r-project.org/)
+    -   [RStudio (free desktop version)](https://www.rstudio.com/products/rstudio/download/)
+    -   [Bioconductor](https://bioconductor.org/install/)\
+
+-   Before attempting to run the code below, please open a new/fresh RStudio session.\
+
+-   If you are still asked to restart RStudio, please do so (at least the first time - if you get asked multiple times, you can say No after doing it once).
+
+-   It is also recommended that you update all packages and to install from source if asked.\
+
+-   If you would like help with installation issues, feel free to email [karla.lindquist\@ucsf.edu](mailto:karla.lindquist@ucsf.edu){.email}.
+
+```{r message=FALSE}
+## install Bioconductor (to be completed in advance of workshop - uncomment lines to reinstall)
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#     install.packages("BiocManager")
+# BiocManager::install(version = "3.13")
+
+## list Bioconductor packages
+pkgs <- c("GEOquery","org.Mm.eg.db","GenomeInfoDbData","TxDb.Mmusculus.UCSC.mm10.knownGene","Mus.musculus","BiocStyle","limma","edgeR","RColorBrewer","gplots","gage","clusterProfiler","ReactomePA","GOSemSim","DOSE","enrichplot")
+
+## install CRAN packages (some but not all may need to install utf8 to get all Bioconductor packages to install)
+install.packages(c("knitr","utf8"))
+
+## install Bioconductor packages (to be completed in advance of workshop - un-comment lines to reinstall)
+# BiocManager::install(pkgs, force=TRUE)
+
+## load packages
+for(package in c(pkgs, "knitr")) {
+  do.call("library", list(package))
+}
+```
+
+Note: if you get a message saying "Error in install.packages : Updating loaded packages" do not worry about this.
+
+------------------------------------------------------------------------
+
+#### Acknowledgments
+
+To find package citations, you can use the `citation()` function with package name as the argument.
+
+```{r}
+citation("enrichplot")
+```

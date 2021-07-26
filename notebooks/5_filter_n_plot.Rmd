@@ -1,0 +1,137 @@
+---
+title: "Filter and plot expression" 
+authors: "Karla Lindquist"
+date: "7/26/2021"
+output: html_notebook
+---
+
+#### *Objective 4. Filter out genes with low expression and plot*
+
+Packages used in this notebook: `edgeR`, `RColorBrewer`. First verify that they are installed and loaded.
+
+------------------------------------------------------------------------
+
+The next step is to filter out genes with low intensity (this is a crude way of filtering - it's not a recommendation, just showing how this could be done). In this case, we will select rows (genes) where at least 3 of the 9 samples have counts/million \>1.
+
+```{r}
+dge_sub <- dge[rowSums(cpm>1)>=3, ]
+```
+
+If this code seems mysterious, break it down!
+
+```{r}
+head(cpm)
+head(rowSums(cpm>1))
+head(rowSums(cpm>1)>=3)
+```
+
+------------------------------------------------------------------------
+
+##### **Discussion**
+
+What are some ways to decide on the filtering criteria? How do you do it? What are the strengths and weaknesses of these options:
+
+-   Intensity-based (e.g. decide a-priori: if genes are not expressed in x% of samples, remove).
+-   Statistically-based (e.g. calculate coefficient of variation CV or adjusted p-values for each gene across samples, decide a-priori to remove genes outside of a certain range).
+-   Biologically-based (e.g. look at genes of interest).
+
+------------------------------------------------------------------------
+
+##### Compare filtered to unfiltered data  
+
+Now compare the size of the original raw count data to the filtered data.
+
+```{r}
+dim(dge)
+dim(dge_sub)
+nrow(dge_sub) / nrow(dge)
+```
+
+So we're only going to be using \~52% of the data, but when we look at the distribution of the raw and unfiltered data, we see that this helps. We've also set aside most of the data we're filtered out - this `dge_omit` set will be used to demonstrate some key differences in analysis later in the course, but we won't be discussing it until a bit later.
+
+Let's plot the raw and filtered data distributions (density) side-by-side. First let's assign different colors to each of the 9 samples so we can overlay them.
+
+```{r}
+?RColorBrewer
+
+nsamples <- ncol(dge_sub)
+col <- brewer.pal(nsamples, "Paired")
+col
+```
+
+Here we want to use the log2(CPM) values for both raw and filtered data. We created `log2_cpm` in Objective 3 but we'll create it here again and name it `log2cpm_raw` to distingush it from the filtered data `log2cpm_sub`.
+
+```{r}
+log2cpm_raw <- cpm(dge, log=TRUE) ## raw unfiltered expression (log2 CPM)
+log2cpm_sub <- cpm(dge_sub, log=TRUE) ## filtered
+```
+
+The `density()` function from the `stats` package will give us the data to plot the raw and filtered data.
+
+```{r}
+density(log2cpm_raw[,1])
+density(log2cpm_sub[,1])
+```
+
+We will set up a plot with 1 row, 2 columns (2 plots) so we can make side-by-side density plots. We'll put the raw data on the left plot and the filtered data on the right. This is done with the `par()` function (see `?par` for general plot parameters).
+
+We'll start by making the first plot of just the first sample, then we will combine the samples using a for loop and overlay these as lines on the same plot.
+
+```{r}
+par(mfrow=c(1,2))
+plot(density(log2cpm_raw[,1]),
+     col=col[1], 
+     lwd=2, 
+     ylim=c(0,0.21), 
+     las=2, 
+     main="", 
+     xlab="")
+title(main="A. Raw data", xlab="Log2(CPM)")
+abline(v=0, lty=3)
+
+for (i in 2:nsamples){
+    den <- density(log2cpm_raw[,i])
+    lines(den$x, den$y, col=col[i], lwd=2)
+}
+```
+
+Next we can make the second plot of filtered data on the right like we did for the raw data. We'll put all of the code together for the final plot.
+
+```{r}
+par(mfrow=c(1,2))
+plot(density(log2cpm_raw[,1]),
+     col=col[1], 
+     lwd=2, 
+     ylim=c(0,0.21), 
+     las=2, 
+     main="", 
+     xlab="")
+title(main="A. Raw data", xlab="Log2(CPM)")
+abline(v=0, lty=3)
+
+for (i in 2:nsamples){
+    den <- density(log2cpm_raw[,i])
+    lines(den$x, den$y, col=col[i], lwd=2)
+}
+
+plot(density(log2cpm_sub[,1]), 
+    col=col[1], 
+    lwd=2, 
+    ylim=c(0,0.21), 
+    las=2, 
+    main="", 
+    xlab="")
+title(main="B. Filtered data", xlab="Log2(CPM)")
+abline(v=0, lty=3)
+
+for (i in 2:nsamples){
+    den <- density(log2cpm_sub[,i])
+    lines(den$x, den$y, col=col[i], lwd=2)
+}
+```
+
+**Question:** why is there that peak on the left side of the raw data? Recall what I said about the `cpm` function in the previous notebook about what happens to zero counts.
+
+```{r}
+?cpm
+```

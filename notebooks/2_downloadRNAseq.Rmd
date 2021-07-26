@@ -1,0 +1,80 @@
+---
+title: "Download RNA-seq files from GEO" 
+authors: "Karla Lindquist"
+date: "7/26/2021"
+output: html_notebook
+---
+
+#### *Objective 1. Download RNA-seq files from GEO*
+
+Packages used in this notebook: `GEOquery`, `edgeR`. First verify that these are installed and loaded.
+
+------------------------------------------------------------------------
+
+##### Read GEO data
+
+Read data using a RStudio project directory (assumes you have a project folder with subfolders called "src" for your notebooks/scripts and another subfolder called "data").
+
+```{r}
+getwd() ## confirm that your working directory is your main project or the "src" folder
+projdir <- sub("src", "", getwd()) ## this removes the "src" part of the directory string in case it is there
+projdir ## confirm this is your main project directory
+```
+
+The files we will be using for this are from the GEO database, accession [GSE63310](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE63310):
+
+Retreive the raw RNA-seq files using the GEO accession. Usually these are either provided in CEL format (Affymetrix/Thermo Fisher arrays), or other formats such as plain TXT files (other platforms). In this case we will be using TXT files.
+
+```{r}
+?getGEOSuppFiles
+
+gse <- getGEOSuppFiles(GEO = "GSE63310", baseDir=paste0(projdir, "data"))
+```
+
+Note that this created a sub-directory with the accession name and downloaded a .tar file, which we will unpack into our main data directory.
+
+```{r}
+untar(tarfile=paste0(projdir, "data", "/GSE63310/GSE63310_RAW.tar"),
+      exdir=paste0(projdir, "data"))
+```
+
+We will be analyzing 9 of the 11 samples, all in separate files.
+
+```{r}
+files <- c("GSM1545535_10_6_5_11.txt", "GSM1545536_9_6_5_11.txt", "GSM1545538_purep53.txt", "GSM1545539_JMS8-2.txt", "GSM1545540_JMS8-3.txt", "GSM1545541_JMS8-4.txt", "GSM1545542_JMS8-5.txt", "GSM1545544_JMS9-P7c.txt", "GSM1545545_JMS9-P8c.txt")
+```
+
+------------------------------------------------------------------------
+
+##### Unpack and decompress files
+
+```{r}
+files
+for(f in paste(files, ".gz", sep="")) {
+    gunzip(paste0(projdir, "data/", f), overwrite=TRUE)
+}
+```
+
+We could open any of these in a text editor, but let's read the first file into a data frame so we can take a look at it in R.
+
+```{r}
+files[1]
+f1 <- read.delim(file=paste0(projdir, "data/", files[1]))
+dim(f1)
+head(f1)
+```
+
+As we can see, this dataframe has three columns: the gene ID (Entrez), length of the gene, and read counts from the run.
+
+------------------------------------------------------------------------
+
+##### Create a digital gene expression (DGE) object
+
+Now we'll create a DGEList object which will contain data from all files. This requires us to indicate which columns represent the gene names and raw read counts. This assumes there is only one gene per row (no duplicates).
+
+```{r}
+?readDGE
+
+dge <- readDGE(files=files, path=paste0(projdir, "data"), columns=c(1,3))
+dge
+```

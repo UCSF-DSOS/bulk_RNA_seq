@@ -1,0 +1,71 @@
+---
+title: "Normalize and plot expression" 
+authors: "Karla Lindquist"
+date: "7/26/2021"
+output: html_notebook
+---
+
+#### *Objective 5. Normalize the filtered expression data and plot*
+
+Packages used in this notebook: `edgeR`, `RColorBrewer`. First verify that they are installed and loaded.
+
+------------------------------------------------------------------------
+
+Now we should normalize the filtered expression data. This is achieved by dividing each expression value by the total or sum of all expression values on the array. Simply put, this just gets everything on a similar scale. We'll demonstrate this below. Just like with estimating and filtering expression, there are a number of different methods for normalization. There are also other R packages to do this and to be able to compare normalization methods, e.g. the [NormExpression](https://www.frontiersin.org/articles/10.3389/fgene.2019.00400/full) package (Wu et al. 2019).
+
+For now, we'll use the `calcNormFactors()` from the `edgeR` package.
+
+Our normalized values can go in the `norm.factors` column of the samples part of our filtered DGEList object `dge_sub` which are all equal to 1 by default:
+
+```{r}
+dge_sub$samples
+```
+
+------------------------------------------------------------------------
+
+##### Normalize using the trimmed mean (TMM) method
+
+We will use this method for starters. See the help file for `calcNormFactors` - you could also try the other methods and compare their impact on downstream analysis. Basically the TMM method accounts for different library sizes between the samples.
+
+```{r}
+?calcNormFactors
+dge_sub_norm <- calcNormFactors(dge_sub, method = "TMM")
+dge_sub_norm$samples
+```
+
+**Question:** Can anyone tell us how to access the library sizes for each sample from the `dge` object?
+
+```{r}
+# view library sizes for each sample
+```
+
+------------------------------------------------------------------------
+
+##### Alter a couple of samples and then re-normalize to demonstrate the effect
+
+Let's see what happens when we mess up the scale on the first 2 columns of the raw filtered counts (reduce counts by 5% for first sample, increase by 500% for second). We will then re-calculate the log2(CPM) values after doing this. This will better allow us to see the effects of the normalization in the plots below.
+
+```{r}
+dge_sub$counts[,1] <- dge_sub$counts[,1]*0.05
+dge_sub$counts[,2] <- dge_sub$counts[,2]*5
+
+log2cpm_unorm <- cpm(dge_sub, log=TRUE)
+log2cpm_norm <- cpm(dge_sub_norm, log=TRUE)
+```
+
+Now we can make side-by-side box plots to show the differences before and after normalization (especially for the two samples that we messed up intentionally).
+
+```{r}
+par(mfrow=c(1,2))
+boxplot(log2cpm_unorm, 
+    las=2, 
+    col=col, 
+    main="")
+title(main="A. Unnormalized data",ylab="Log2(CPM)")
+
+boxplot(log2cpm_norm, 
+    las=2, 
+    col=col, 
+    main="")
+title(main="B. Normalized data",ylab="Log2(CPM)")
+```
