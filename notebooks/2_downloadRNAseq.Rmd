@@ -13,11 +13,11 @@ Packages used in this notebook: `GEOquery`, `edgeR`. First verify that these are
 
 ##### Read GEO data
 
-Read data using a RStudio project directory (assumes you have a project folder with subfolders called "src" for your notebooks/scripts and another subfolder called "data").
+Read data using a RStudio project directory (assumes you have a project folder with subfolders called "notebooks" for your notebooks/scripts and another subfolder called "data").
 
 ```{r}
-getwd() ## confirm that your working directory is your main project or the "src" folder
-projdir <- sub("src", "", getwd()) ## this removes the "src" part of the directory string in case it is there
+getwd() ## confirm that your working directory is the "notebooks" folder
+projdir <- sub("notebooks", "", getwd()) ## this removes the "notebooks" part of the directory string 
 projdir ## confirm this is your main project directory
 ```
 
