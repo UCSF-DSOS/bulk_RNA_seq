@@ -7,15 +7,25 @@ This workshop is intended for individuals who are already comfortable with R pro
 Learning Objectives
 By the end of the workshop, participants should be able to:
 
-        Download RNA-seq files from GEO
-        Annotate the samples
-        Calculate expression as read counts/million (CPM) and log2(CPM)
-        Filter out genes with low expression and plot
-        Normalize the filtered expression data and plot
-        Perform unsupervised clustering of expression data
-        Perform differential expression analysis
-        Create heatmaps and volcano plots
-        Perform enrichment and pathway analysis
+- Download RNA-seq files from GEO
+- Annotate the samples
+- Calculate expression as read counts/million (CPM) and log2(CPM)
+- Filter out genes with low expression and plot
+- Normalize the filtered expression data and plot
+- Perform unsupervised clustering of expression data
+- Perform differential expression analysis
+- Create heatmaps and volcano plots
+- Perform enrichment and pathway analysis
+        
+Prerequisites
+
+You must have some R programming experience and a basic understanding of the purpose of DNA-Seq analysis to benefit from this course. Feel free to contact the instructor (see below) if you have questions about these requirements.
+
+Software
+
+Please have the latest versions of R and R Bioconductor installed if you plan to run the R notebooks locally. RStudio (the free version) is highly recommended as well, since we will be teaching in this environment.  
+
+We package R installations in .Rmd format - you'll need to have [R](https://www.r-project.org), [R Bioconductor](https://bioconductor.org/install/), and [RStudio](https://www.rstudio.com/products/rstudio/download/) installed to proceed.
 
 ### Official UCSF DSI Course Materials
 
