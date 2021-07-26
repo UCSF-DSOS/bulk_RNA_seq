@@ -1,11 +1,21 @@
 # UCSF DSI RNA seq
 
-Welcome to the UCSF Data Science Initiative's bulk RNA-sequencing workshop. This course is primarily built on the following software:
+Workshop Overview
 
-- [Limma](https://bioconductor.org/packages/release/bioc/html/limma.html)
-- [EdgeR](https://bioconductor.org/packages/release/bioc/html/edgeR.html)
+This workshop is intended for individuals who are already comfortable with R programming and who are interested in learning to use R for standard RNA-Seq analyses. We will take you through a complete RNA-Seq workflow using R Bioconductor packages.
 
-These are both hosted via [Bioconductor](https://bioconductor.org) - setup instrucations can be found on our course webpage and in the first notebook of the series.
+Learning Objectives
+By the end of the workshop, participants should be able to:
+
+        Download RNA-seq files from GEO
+        Annotate the samples
+        Calculate expression as read counts/million (CPM) and log2(CPM)
+        Filter out genes with low expression and plot
+        Normalize the filtered expression data and plot
+        Perform unsupervised clustering of expression data
+        Perform differential expression analysis
+        Create heatmaps and volcano plots
+        Perform enrichment and pathway analysis
 
 ### Official UCSF DSI Course Materials
 
