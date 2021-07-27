@@ -1,0 +1,75 @@
+---
+title: "Perform unsupervised clusetering" 
+authors: "Karla Lindquist"
+date: "7/27/2021"
+output: html_notebook
+---
+
+#### *Objective 6. Perform unsupervised clustering of expression data*
+
+Packages used in this notebook: `limma`, `RColorBrewer`. First verify that they are installed and loaded.
+
+------------------------------------------------------------------------
+
+Now that we have filtered and normalized our expression levels, we will visualize differences between groups of samples. If it appears that there is some clustering of samples, then doing differential expression analysis can follow to formally test these differences.
+
+We'll start by assigning different colors to each group of samples (LP, ML, and Basal) in a similar way to what we did in Objective 4.
+
+```{r}
+grps <- dge_sub$samples$group
+col.grp <- grps
+levels(col.grp) <-  brewer.pal(nlevels(col.grp), "Set1") ## assigning a color to each sample group using nlevels(col.grp)
+col.grp <- as.character(col.grp)
+col.grp 
+grps
+```
+
+------------------------------------------------------------------------
+
+##### Multidimensional scaling
+
+The `plotMDS()` function from the `limma` package shows us a scatterplot where distances between samples represent typical log2(Fold-Change) between the samples for genes that distinguish the samples (see Details in Help file and in the [reference article](https://pubmed.ncbi.nlm.nih.gov/25605792/) for the package).
+
+Note that you can save this plot (code is commented out but you can use the `png()` function followed by the plot commands and then `dev.off()`).
+
+```{r}
+?plotMDS
+
+head(log2cpm_norm)
+
+grps_num <- paste(grps, seq(1:length(grps)), sep="-") ## paste sample # next to group label
+grps_num
+
+# png(paste0(projdir, "results/MDSplot.png"))
+par(mfrow=c(1,1))
+plotMDS(log2cpm_norm, 
+    labels=grps_num,  ## label with group and sample #
+    col=col.grp,
+    xlab="Log2(Fold-Change)",
+    ylab="Log2(Fold-Change)")
+title(main="Sample groups")
+# dev.off()
+```
+
+------------------------------------------------------------------------
+
+##### **Discussion**
+
+What is this plot telling us? Think variances within and between samples.
+
+What if you were to use the un-normalized data that was perturbed in Objective 5 where sample \#1 (LP) counts were artificially reduced by 5%, and sample \#2 (ML) counts were artificially increased by 500%?
+
+```{r}
+dge_sub
+head(log2cpm_unorm)
+
+# png(paste0(projdir, "results/MDSplot-unnormalized.png"))
+par(mfrow=c(1,1))
+plotMDS(log2cpm_unorm, 
+    labels=grps_num, 
+    col=col.grp,
+    xlab="Log2(Fold-Change)",
+    ylab="Log2(Fold-Change)")
+title(main="Sample groups")
+# dev.off()
+```

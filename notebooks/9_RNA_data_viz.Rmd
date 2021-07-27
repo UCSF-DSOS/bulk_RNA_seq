@@ -1,0 +1,230 @@
+---
+title: "Visualize differential results" 
+authors: "Karla Lindquist"
+date: "7/27/2021"
+output: html_notebook
+---
+
+#### *Objective 8. Create heatmap and volcano plots*
+
+Packages used in this notebook: `limma`, `gplots`, `RColorBrewer`. First verify that they are installed and loaded.
+
+------------------------------------------------------------------------
+
+Now that we've done some analysis of the data, we can visualize the results. While figures may not convey the depth of information that quantitative outputs might display, it does make our results far easier to interpret at a glance. Here we'll do a quick survey of some of the more popular RNA-seq visualizations.
+
+##### Hierarchical clustering with heatmaps
+
+Hierarchical clustering can be a potent way to examine differences between samples, and heatmaps can succintly visualise the clustering of your samples. We can do this using the `heatmap.2()` function from the `gplots` package. In this example `heatmap.2()` calculates a matrix of euclidean distances from the logCPM values for the 500 most variable genes.
+
+Let's select data for the 500 most variable genes and plot the heatmap. First we'll estimate the variance in expression levels across all samples for each gene in the `log2cpm_norm` matrix. The `apply` function allows us to efficiently calculate variance in each row.
+
+```{r}
+?base::apply
+var_genes <- apply(log2cpm_norm, 1, var) ## for each row calculate variance
+head(var_genes)
+```
+
+Just to double check let's manually calculate variance for row \#1.
+
+```{r}
+head(log2cpm_norm)
+var(log2cpm_norm[1,]) ## variance in row 1 matches the first variance value above
+```
+
+Now we can get the ENTREZID names for the top 500 most variable genes. We can basically do a descending sort by the variances calculated above and then select 1-500.
+
+```{r}
+select_var <- names(sort(var_genes, decreasing=TRUE))[1:500]
+head(select_var)
+```
+
+Subset the `log2cpm_norm` matrix contain to contain just the top 500 variable genes using this vector of gene names. The heatmap needs to use these normalized expression levels to plot (more on this below).
+
+```{r}
+highly_variable_lcpm <- log2cpm_norm[select_var,]
+dim(highly_variable_lcpm) ## should be 500 genes x 9 samples
+head(highly_variable_lcpm)
+```
+
+Now plot the heatmap with these 500 genes. We will write this figure to a png file because often the R plot window will not be big enough to show it (depends on your system and screen size, but on a laptop you may get the "Error in plot.new() : figure margins too large" error message otherwise). First let's look at the help file for the `heatmap.2` function. There are a lot of options! The easiest way to customize your own is to look at the examples and try a few different things, or look online to find some others that you like. We will make a pretty bare-bones heatmap here.
+
+We will keep the samples together in columns and use the same colors that we used in the cluster plot in Objective 6 to indicate which is which. So at the top we will have the 3 ML samples (green), 3 LP samples (blue), and the 3 Basal samples (red).
+
+The dendograms are based on hierarchical clustering to show similar samples. By default, `heatmap.2` uses Euclidean distances with complete agglomeration. Different heatmap functions will use different methods, and there are lots of tutorials out there that can help you understand the differences between them, e.g. [here](https://www.datanovia.com/en/lessons/heatmap-in-r-static-and-interactive-visualization/).
+
+```{r}
+?heatmap.2
+
+png(filename=paste0(projdir, "results/heatmap.png"))
+heatmap <- heatmap.2(highly_variable_lcpm, 
+                     dendrogram = "both", ## create a dendogram and reorder the rows by cluster
+                     trace = "none", ## don't draw lines on top
+                     scale = "row",  ## use z-score scaling for rows
+                     col = bluered, ## use blues and reds
+                     srtCol = 25, ## angle the column/sample labels since they are long
+                     ColSideColors = col.grp, ## color sample groups as we did in the cluster plot (green ML, blue LP, red Basal)
+                     margins = c(8,8)) 
+dev.off()
+
+# you can view the dendogram too although the gene name labels are hard to see
+plot(heatmap$rowDendrogram, ylab="Cluster height", xlab="Gene")
+plot(heatmap$colDendrogram, ylab="Cluster height", xlab="Sample")
+```
+
+This gives us a good overview of just how much variance is occuring between the LP, MP, and Basal groups. We can even see that in the "colDendogram" our LP and MP samples cluster together while the Basal group is split from those groups at a relatively high level. This makes the distance plots we saw earlier make a little more sense as we can clearly see that the LP and MP groups are much more similar to one another than the Basal group.
+
+------------------------------------------------------------------------
+
+##### Extract gene clusters from the heatmap
+
+It is a little difficult to select specific genes for analysis just from this. So let's pull out groups of interest from the heatmap. The `as.hclust` function can take the already-clustered data from the heatmap (the row dendogram that is, where genes are clustered).
+
+```{r}
+top_500_clustered <- as.hclust(heatmap$rowDendrogram)
+names(top_500_clustered) ## these are the values stored - the height and order are included now - you can also view this in the environment tab
+```
+
+Now take this clustering information and "cut" the dendogram to select a fewer number of clusters to focus on. To do this, we need to cut based on the cluster height (higher numbers correspond to larger clusters). Look back at the dendogram above, or look at the distribution of height values. Picking a good cut point is somewhat of an art but often is practical (e.g. how many clusters do you want to keep?). Let's say for simplicity, we just want to know which genes fall into the clusters at height\>30 which should give us 3 clusters. We can use the `table` function to find out how many fall into each of the clusters. s
+
+```{r}
+hist(top_500_clustered$height, breaks=length(unique(top_500_clustered$height)))
+mycl <- cutree(top_500_clustered, h=max(30))
+table(mycl)
+```
+
+Now let's add the cluster ID to the rest of the data. The genes and cluster IDs should still be in the same order, but you can do a spot check first or to be really safe, you can join the data with the cluster IDs by ENTREZIDs.
+
+```{r}
+head(highly_variable_lcpm)
+head(mycl)
+cldat <- cbind(highly_variable_lcpm, clusterID=mycl)
+head(cldat)
+```
+
+What if we wanted to order this data now by height of the cluster? Remember we have heights and corresponding gene orderings from that `top_500_clustered` object. Let's create a data frame sorted by that ordering based on cluster height. To understand how the code works to create this data frame, it might be easiest to view the top_500_clustered object from the Environment tab, but we can look at the head and tail of the values stored there.
+
+```{r}
+names(top_500_clustered)
+head(top_500_clustered$height) ## lowest cluster heights
+tail(top_500_clustered$height) ## highest cluster heights
+head(top_500_clustered$order) ## row number (order) for lowest heights 
+tail(top_500_clustered$order) ## row number (order) for highest heights 
+
+top_diff_genes <- as.data.frame(cldat[top_500_clustered$order,]) ## order cldat by heights
+head(top_diff_genes)
+```
+
+OK great, but what if we wanted those gene SYMBOLS instead of ENTREZIDs? We can merge them in by first creating a column that reflects the ENTREZID in our data frame (these are currently in rownames). Note that when we merge, we want to keep the ordering of `top_diff_genes`, so we list that first in the merge and tell it not to resort.
+
+```{r}
+head(gene_ids) ## make sure you still have this from before (annotate notebook)
+top_diff_genes$ENTREZID <- rownames(top_diff_genes)
+head(top_diff_genes)
+top_diff_genes <- merge(top_diff_genes, gene_ids, by="ENTREZID", sort=FALSE)
+head(top_diff_genes, n=10)
+```
+
+------------------------------------------------------------------------
+
+##### Make volcano plots
+
+Another way to visualize differential gene experession is via volcano plots. Here we'll quickly rehash how to get your data formatted appropriately for use with the `limma` package's function `volcanoplot()` and plot a simple example.
+
+```{r}
+### Rehashing how to format data for volano plots (from notebooks 6, 7, 8)
+# start with our groups
+grps # this variable contains our groups of samples (ML, LP, Basal) - created in notebook #7 (unsupervised clustering)
+# creating design matrix (dummy variable creation for each sample and the group it belongs to)
+design <- model.matrix(~0 + grps)
+# relabeling columns
+colnames(design) <- gsub("grps", "", colnames(design))
+#creating contrast matrix
+contrast <- makeContrasts(
+   BasalvsLP = Basal - LP, 
+   BasalvsML = Basal - ML, 
+   LPvsML = LP - ML, 
+   levels = colnames(design))
+# Now we use `voom()` from `limma` to combine log2(CPM) values from the filtered, normalized data with the design matrix
+dge_voom <- voom(dge_sub_norm, design)
+# Using limma's lmfit() function - this is the linear model fit step
+dge_fit <- lmFit(dge_voom, design)
+# Using contrast matrix to compare the groups
+grp_fit <- contrasts.fit(dge_fit, contrasts=contrast)
+# Empirical Bayes method (limma) to use information across all genes - this should make the residual variances independent of the expression levels.
+efit <- eBayes(grp_fit)
+```
+
+Now we'll create a simple plot using the `volcanoplot()` function - for each comparison we'll label the top 10 most differentially expressed genes.
+
+First we'll replace the ENTREZIDs with gene sSYMBOLS for easier interpretation:
+
+```{r}
+# convert gene IDs to Gene Symbols for easier interpretation
+efit_genes <- names(efit$Amean)
+efit_genes <- as.data.frame.AsIs(efit_genes)
+colnames(efit_genes) <- "ENTREZID"
+efit_genes <- merge(gene_ids, efit_genes, by="ENTREZID", sort = FALSE)
+names(efit$Amean) <- efit_genes$SYMBOL
+```
+
+And now we're ready to plot:
+
+```{r}
+?volcanoplot
+# basal vs lp
+volcanoplot(efit,
+            coef = 1,
+            style = "p-value",
+            highlight = 10,
+            names = names(efit$Amean),
+            hl.col="blue",
+            main = "Basal vs LP",
+            xlab = "Log2 Fold Change",
+            ylab = NULL,
+            pch=20,
+            cex=0.35)
+
+# basal vs ml
+volcanoplot(efit, coef = 2, style = "B-statistic", highlight = 10, names = names(efit$Amean), 
+            hl.col="blue",
+            main = "Basal vs ML", xlab = "Log2 Fold Change", ylab = NULL, pch=20, cex=0.35)
+
+# lp vs ml
+volcanoplot(efit,coef = 3, style = "p-value", highlight = 10, names = names(efit$Amean), 
+            hl.col="blue", 
+            main = "LP vs ML", xlab = "Log2 Fold Change", ylab = NULL, pch=20, cex=0.35)
+```
+
+This is a succinct way to visualize differential expression patterns, but let's pull out the labeled genes for further observation.
+
+```{r}
+?topTable
+# top hits:
+BasalvLP_top <- topTable(efit, coef = 1, number = 10, sort.by = 'P')
+BasalvLP_top
+
+# top hits:
+BasalvML_top <- topTable(efit, coef = 2, number = 10, sort.by = 'P')
+BasalvML_top
+
+# top hits:
+ML_v_LP_top <- topTable(efit, coef = 3, number = 10, sort.by = 'P')
+ML_v_LP_top
+```
+
+Here we have pulled out the top 10 most significant differentially expressed genes that were labeled on each volcano plot. With certain datasets, the row names will be gene symbols. In this case, however, we will need to process these row names to replace them with the gene symbols.
+
+```{r}
+ML_v_LP_top$ENTREZID <- rownames(ML_v_LP_top)
+ML_v_LP_top <- merge(ML_v_LP_top, gene_ids, by="ENTREZID", sort = FALSE)
+ML_v_LP_top
+```
+
+------------------------------------------------------------------------
+
+##### Some notes on volcano plots
+
+It is possible to refine this figure for publication, but I'd recommend using the `EnhancedVolcano` package to generate publication-ready plots.
+
+In the interest of time, we won't be covering the EnhancedVolcano package for highly customizable plots. If you wish to give this a try yourself, see [this bioconductor vignette](https://bioconductor.org/packages/devel/bioc/vignettes/EnhancedVolcano/inst/doc/EnhancedVolcano.html). Fair warning: it will take some data cleaning and restructuring to implement.

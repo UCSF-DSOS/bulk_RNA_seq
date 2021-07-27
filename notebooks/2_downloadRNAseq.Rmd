@@ -62,6 +62,7 @@ files[1]
 f1 <- read.delim(file=paste0(projdir, "data/", files[1]))
 dim(f1)
 head(f1)
+tail(f1)
 ```
 
 As we can see, this dataframe has three columns: the gene ID (Entrez), length of the gene, and read counts from the run.

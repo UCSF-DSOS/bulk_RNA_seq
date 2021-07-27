@@ -1,0 +1,157 @@
+---
+title: "Perform differential expression analysis" 
+authors: "Karla Lindquist"
+date: "7/27/2021"
+output: html_notebook
+---
+
+#### *Objective 7. Perform differential expression analysis*
+
+Packages used in this notebook: `limma`, `RColorBrewer`. First verify that they are installed and loaded.
+
+------------------------------------------------------------------------
+
+Here we will be formally testing whether genes are deferentially expressed between the sample groups (LP vs. MP vs. Basal). First we need to do a little set-up which involves creating design and contrast matrices.
+
+##### Create design and contrast matrices
+
+Let's make a design/model matrix with groups to be compared (this makes dummy variables for each sample indicating which group they belong to). We can do this with the `model.matrix()` function from the `stats` package.
+
+```{r}
+?model.matrix
+grps
+design <- model.matrix(~0 + grps)
+design
+```
+
+Now we'll re-label the columns to clean it up (get rid of "grps").
+
+```{r}
+colnames(design) <- gsub("grps", "", colnames(design))
+design
+```
+
+We also need a contrast matrix to indicate which groups to compare to each other (reference group has a value of 1, comparison group has a value of -1). We will do all pairwise comparisons. The `makeContrasts()` function is from the `limma` package. We'll have to remember what the labels refer to, i.e. "BasalvsLP" is taking expression levels in Basal samples minus expression levels in the LP samples, etc.
+
+```{r}
+?makeContrasts
+
+contrast <- makeContrasts(
+   BasalvsLP = Basal - LP, 
+   BasalvsML = Basal - ML, 
+   LPvsML = LP - ML, 
+   levels = colnames(design))
+contrast
+```
+
+------------------------------------------------------------------------
+
+##### Combine normalized expression levels with matrices
+
+Now we use `voom()` from `limma` to combine log2(CPM) values with the design matrix and to prepare it for modeling at the gene level. Note that the default normalization method for this function is "none". We will keep this default because we have already log-transformed and normalized the values, and stored them in the `dge_sub_norm` object. It calculates weights for each gene.
+
+```{r}
+?voom
+
+dge_voom <- voom(dge_sub_norm, design)
+dge_voom
+```
+
+------------------------------------------------------------------------
+
+##### Compare genes
+
+Now we can put this into a linear model where the groups are compared one at a time to the other two groups (combined) for each gene using `lmFit()` from `limma`.
+
+```{r}
+?lmFit
+dge_fit <- lmFit(dge_voom, design)
+dge_fit
+```
+
+Next we'll use the contrast matrix created above so we can compare the groups to each other (this is what we care about the most).
+
+```{r}
+?contrasts.fit
+grp_fit <- contrasts.fit(dge_fit, contrasts=contrast)
+```
+
+Notice that these grp_fit coefficients are equal to the differences between the coefficients from the dge_fit model above.
+
+```{r}
+head(dge_fit$coefficients)
+head(grp_fit$coefficients)
+```
+
+------------------------------------------------------------------------
+
+##### Inspect residuals
+
+Just like with any regression modeling, you want to check the assumptions of the model. One assumption is that the variance of the residuals (difference between the model's predicted values and the actual values) are independent of the actual values. We can use the `plotSA` (Sigma vs A) function from the `limma` package.
+
+```{r}
+?plotSA
+
+plotSA(grp_fit, main="Mean−variance trend")
+```
+
+This looks pretty good. Why? Would you exclude/filter any genes based on this plot?
+
+------------------------------------------------------------------------
+
+##### Apply eBayes if necessary
+
+What if you have a strong correlation between residuals and expression levels, e.g. where variance (y-axis) increases with expression? Apply the empirical Bayes method this should make the residual variances independent of the expression levels. The `eBayes()` function is also from `limma`.
+
+```{r}
+?eBayes
+efit <- eBayes(grp_fit)
+```
+
+Just to make sure the eBayes method worked, we can plot the residuals again.
+
+```{r}
+plotSA(efit, main="Mean−variance trend post-eBayes")
+```
+
+------------------------------------------------------------------------
+
+##### Identify significant genes
+
+Now we can find out how many genes are significantly different between the groups. You can use the result of the eBayes method or the original (in this case, since there isn't much of a difference). The `decideTests` function identifies significantly up- and down-regulated genes in the sample groups after correcting for multiple comparisons.
+
+```{r}
+?decideTests
+summary(decideTests(efit))
+```
+
+We can find the most significant genes (e.g. top 10). The F statistic reflects the magnitude of the overall group differences, and the adjusted p-value corrects for multiple comparisons. It is possible to look at overall statistics for the three contrasts, but we will take a look at the top 10 genes for each contrast one at a time (i.e. Basal vs. LP, Basal vs. ML, LP vs. ML) by using the coef argument.
+
+```{r}
+?topTable
+
+## look at top 10 overall by F statistics/p-values
+topTable(efit, number=10) 
+
+names(efit)
+efit$contrasts
+
+## Basal vs. LP (coef=1)
+topTable(efit, coef=1, number=10, sort.by="p")
+
+## Basal vs. ML (coef=2)
+topTable(efit, coef=2, number=10, sort.by="p")
+
+## LP vs. ML (coef=3)
+topTable(efit, coef=3, number=10, sort.by="p")
+```
+
+------------------------------------------------------------------------
+
+##### Save list of significant genes to a file
+
+If you would like to save the results from the model above, including coefficients, test statistics and p-values, you can use the `write.fit()` function from the `limma` package. In this function, you need to specify if you want to adjust p-values for multiple comparisons (you should, and we will use "BH" here for Benjamini-Hochberg, to match what we did above with topTable, and with what we will do next with visualizations and GSEA). We will also indicate that we want to adjust p-values for each contrast.
+
+```{r}
+write.fit(efit, file=paste0(projdir, "results/DEresults.txt"), adjust="BH", method="separate")
+```

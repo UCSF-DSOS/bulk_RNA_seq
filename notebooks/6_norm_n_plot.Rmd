@@ -31,6 +31,7 @@ We will use this method for starters. See the help file for `calcNormFactors` - 
 ?calcNormFactors
 dge_sub_norm <- calcNormFactors(dge_sub, method = "TMM")
 dge_sub_norm$samples
+dge_sub$samples
 ```
 
 **Question:** Can anyone tell us how to access the library sizes for each sample from the `dge` object?

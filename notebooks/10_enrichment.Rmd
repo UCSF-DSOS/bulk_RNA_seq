@@ -1,0 +1,141 @@
+---
+title: "Perform enrichment and pathway analysis" 
+authors: "Karla Lindquist"
+date: "7/27/2021"
+output: html_notebook
+---
+
+#### *Objective 9. Perform enrichment and pathway analysis*
+
+Packages used in this notebook: `gage`, `pathview`. First verify that they are installed and loaded.
+
+------------------------------------------------------------------------
+
+The `limma` package can test for enrichment with [Gene Ontology](http://geneontology.org/) (GO) terms with the `goana()` function. It can also test for [Kyoto Encyclopedia of Genes and Genomes](https://www.genome.jp/kegg/) (KEGG) pathways with the `kegga()` function. But there are far better options these days. We will only scratch the surface of this complex topic in this workshop. See the Gladstone website for current offerings, or stay tuned for another workshop like this one coming from the Library!
+
+------------------------------------------------------------------------
+
+##### Test for KEGG pathway enrichment using Generally Applicable Gene-set Enrichment (GAGE)
+
+First we will focus on using the `gage` package. See the vignettes for `gage` (run `vignette(package="gage")`) and also this R-bloggers [tutorial](https://www.r-bloggers.com/tutorial-rna-seq-differential-expression-pathway-analysis-with-sailfish-deseq2-gage-and-pathview/) for full pipeline (note they use DESeq2 to start with, so this part is independent of how you got to your list of differentially expressed genes).
+
+The first input to the `gage()` function this is a named vector of log2(fold-change) values (or contrast coefficients), where the names are ENTREZIDs. Let's start by doing a gene set analysis for LP vs. ML. To get these you can use the LPvsML coefficients from the `efit` coefficient matrix.
+
+```{r}
+?gage
+head(efit$coefficients)
+
+fold_lpml <- efit$coefficients[, "LPvsML"]
+head(fold_lpml) ## Entrez IDs are retained from the coefficient matrix
+```
+
+Lets's test for KEGG pathway enrichment in the LP vs. ML samples.
+
+After getting the fold changes (coefficients) as above, the next thing we need to do is to get the latest mouse genome KEGG pathways to test. The `kegg.gsets` function comes from the `gage` package.
+
+```{r}
+?kegg.gsets
+
+kegg_mouse <- kegg.gsets(species="mmu", id.type="kegg")
+names(kegg_mouse)
+
+length(kegg_mouse$kg.sets) ## number of mouse pathways in kegg
+head(kegg_mouse$kg.sets, n=3) ## look at first 3 pathways listed
+```
+
+The numbers next to the name of the pathway is the KEGG accession number. Now let's test whether any our list of differentially expressed genes in the LP vs. ML samples are enriched with any of these. In other words, are there more than expected by chance? Using the `same.dir` argument gives us separate lists of pathways that are enriched with up-regulated and down-regulated genes in LP vs. ML.
+
+```{r}
+?gage
+
+kegg_all = gage(exprs=fold_lpml, gsets=kegg_mouse$kg.sets, same.dir=TRUE)
+```
+
+Notice that `kegg_all` is a list. We have up-regulated genes in LP vs. ML, ("greater"), down-regulated genes ("less"). The `q.val`column is the one we care most about because this is the p-value corrected for multiple comparisons (number of genes tested).
+
+```{r}
+head(kegg_all$greater)
+head(kegg_all$less)
+```
+
+The `stat.mean` indicates the direction and magnitude of expression in the genes that are in the pathway. Again the `q.val` column is the adjusted significance level (false discovery rate - you can use 0.1 for example), and `set.size` represents the number of genes in the pathway. The data is sorted by most-least significant. If you want to look up more information about any pathway, you can search KEGG using the accession number, e.g. see [mmu04974](https://www.genome.jp/dbget-bin/www_bget?mmu04974).
+
+------------------------------------------------------------------------
+
+Test for KEGG metabolism pathway enrichment
+
+You can also test the subset of KEGG signaling, metabolism, and disease pathways separately. The full set that we created above with the `kegg.gsets()` function (we named this kegg_mouse) can be subset for either one using indices. For example let's say we want to test if any metabolic pathways are perturbed - we'll start by subsetting these.
+
+```{r}
+names(kegg_mouse)
+head(kegg_mouse$met.idx) ## these are indices of the metabolic pathways
+kegg_mouse$kg.sets[1] ## this is the first metabolic pathway (index=1)
+```
+
+```{r}
+kegg_met <- kegg_mouse$kg.sets[kegg_mouse$met.idx] ## all metabolic pathways
+```
+
+Make sure the number of pathways matches the number of metabolic indices.
+
+```{r}
+length(kegg_mouse$met.idx)
+length(kegg_met)
+```
+
+Now we can use the kegg_met subset on the LP vs. ML fold changes to find metabolic pathways enriched with up- and down-regulated genes. Say we are interested only in the genes that are down-regulated in LP vs. ML.
+
+```{r}
+kegg_met = gage(exprs=fold_lpml, gsets=kegg_met, same.dir=TRUE)
+names(kegg_met) 
+head(kegg_met$less, n=3)
+```
+
+------------------------------------------------------------------------
+
+##### Test for Reactome pathway enrichement using ReactomePA
+
+We can also use the \`ReactomePA\` package to do pathway analysis. This package uses a hypergeometric model [(Yu and He)](%5Bhttps://pubmed.ncbi.nlm.nih.gov/26661513/)](<https://pubmed.ncbi.nlm.nih.gov/26661513/>)) to determine whether your list of genes are significantly associated with any Reactome packages. Make sure this package is loaded. You may also want to look through the vignettes for this package using the \`browseVignettes\` function.
+
+For a recent overview of gene set analysis, see this paper by [(Das, McClain, and Rai)](%5Bhttps://pubmed.ncbi.nlm.nih.gov/33286201/).](<https://pubmed.ncbi.nlm.nih.gov/33286201/>).)
+
+We will start by using the `enrichPathway()` function which simply takes a vector of ENTREZIDs as input. Let's say we give it our top 500 differentially expressed gene list. We need to make sure to tell it that we are looking at mouse genome pathways. We can specify a q-value cutoff of 0.1 to determine significance of the enrichment.
+
+```{r}
+?enrichPathway
+
+dim(top_diff_genes)
+head(top_diff_genes)
+
+react_pwy <- enrichPathway(gene=top_diff_genes$ENTREZID, qvalueCutoff=0.05, readable=TRUE, organism = "mouse") 
+
+react_pwy_df <- as.data.frame(react_pwy)
+dim(react_pwy_df)
+react_pwy_df
+```
+
+So we have 15 pathways that are siginificantly enriched. Again we can look them up by accession numbers ("ID") in the Reactome database, e.g. R-MMU-1500931.
+
+------------------------------------------------------------------------
+
+##### Visualize Reactome pathway enrichment results
+
+There are lots of ways to visualize the results ... here are a few simple plots (saved as .png).
+
+```{r}
+png(paste0(projdir, "/results/barplot_react.png"), width=960)
+barplot(react_pwy, showCategory = 10)
+dev.off()
+
+png(paste0(projdir, "/results/dotplot_react.png"), width=960)
+dotplot(react_pwy, showCategory = 10)
+dev.off()
+```
+
+------------------------------------------------------------------------
+
+##### Resource for learning more about enrichment and pathway analysis
+
+This is a great online resource that I recommend you review on your own. You already have several of these packages installed and loaded from this workshop, so I recommend that you try them out. Happy mining!
+
+<https://yulab-smu.top/biomedical-knowledge-mining-book/>

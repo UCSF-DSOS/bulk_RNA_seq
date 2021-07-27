@@ -56,6 +56,7 @@ length(dge_ids) ## find out how many genes are represented
 Now say we want to get gene SYMBOLS as well - we need this information from the mouse genome database `org.Mm.eg.db`. We're able to do this by using the mouse genome info this is built into the `AnnotationDbi` package that comes with Bioconductor. Note the use of `keys=dge_ids` here (we wouldn't want to type them all out since this is a long vector). We will call the new vector with SYMBOLS `gene_ids`.
 
 ```{r}
+?AnnotationDbi::select
 gene_ids <- AnnotationDbi::select(org.Mm.eg.db, 
     keys=dge_ids, 
     keytype="ENTREZID",
