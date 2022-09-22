@@ -1,13 +1,12 @@
 ---
-title: "Bulk RNA-Seq Analysis - setup" 
+title: "DNA Variant Analysis with R Bioconductor" 
 authors: "Karla Lindquist"
-date: "7/26/2021"
 output: html_notebook
 ---
 
 ------------------------------------------------------------------------
 
-#### Learning objectives
+#### In this workshop, our objectives are to:
 
 1.  Download RNA-seq files from GEO
 2.  Annotate the samples
@@ -21,46 +20,63 @@ output: html_notebook
 
 ------------------------------------------------------------------------
 
-#### Install required packages
+#### Install packages
 
 Instructions and notes:
 
 -   Please make sure that you have *current* versions of R, Bioconductor, and RStudio installed.
 
     -   [R](https://cran.r-project.org/)
+
     -   [RStudio (free desktop version)](https://www.rstudio.com/products/rstudio/download/)
+
     -   [Bioconductor](https://bioconductor.org/install/)\
 
--   Before attempting to run the code below, please open a new/fresh RStudio session.\
+-   I recommend you start a fresh R/RStudio session *before* running the code below. If asked to restart R again during the installation process, it means you already have the package so you can say No.
 
--   If you are still asked to restart RStudio, please do so (at least the first time - if you get asked multiple times, you can say No after doing it once).
+-   If asked "Update all/some/none?", select No [n] during class (other times select Yes [y]). Older versions of the packages that we will be using will probably work OK.
 
--   It is also recommended that you update all packages and to install from source if asked.\
+-   If asked "Do you want to install from sources the package which needs compilation?", select No [n] during class (other times select Yes [y]). Note that source versions are typically a little newer than binary versions.
 
--   If you would like help with installation issues, feel free to email [karla.lindquist\@ucsf.edu](mailto:karla.lindquist@ucsf.edu){.email}.
+-   Lazy loading errors can be ignored, as can warnings about the version of R packages were built under.
+
+-   If you get a message saying "Error in install.packages : Updating loaded packages" do not worry about this.
+
+-   We will not be re-installing the packages during class, so it is important that you make sure that you have these installed before class.
+
+-   If you have questions about installation issues, feel free to email [karla.lindquist\@ucsf.edu](mailto:karla.lindquist@ucsf.edu){.email}.
 
 ```{r message=FALSE}
-## install Bioconductor (to be completed in advance of workshop - uncomment lines to reinstall)
-# if (!requireNamespace("BiocManager", quietly = TRUE))
-#     install.packages("BiocManager")
-# BiocManager::install(version = "3.13")
+## install Bioconductor
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install(version = "3.15")  
 
 ## list Bioconductor packages
-pkgs <- c("GEOquery","org.Mm.eg.db","GenomeInfoDbData","TxDb.Mmusculus.UCSC.mm10.knownGene","Mus.musculus","BiocStyle","limma","edgeR","RColorBrewer","gplots","gage","clusterProfiler","ReactomePA","GOSemSim","DOSE","enrichplot")
+bpkgs <- c("GEOquery","org.Mm.eg.db","GenomeInfoDbData","TxDb.Mmusculus.UCSC.mm10.knownGene","Mus.musculus","BiocStyle","limma","edgeR","RColorBrewer","gplots","gage","clusterProfiler","ReactomePA","GOSemSim","DOSE","enrichplot")
+## note: some may not be necessary to follow along in the workshop (more for demo purposes)
 
-## install CRAN packages (some but not all may need to install utf8 to get all Bioconductor packages to install)
-install.packages(c("knitr","utf8"))
+## install Bioconductor packages
+BiocManager::install(bpkgs, force = TRUE) 
 
-## install Bioconductor packages (to be completed in advance of workshop - un-comment lines to reinstall)
-# BiocManager::install(pkgs, force=TRUE)
 
-## load packages
-for(package in c(pkgs, "knitr")) {
+## list CRAN packages
+rpkgs <- c("ggplot2","here","cli","R.utils","rmarkdown","knitr","utf8") 
+## note: some but not all may need to install utf8 to get all Bioconductor packages to install; rmarkdown and knitr are only needed if you are using R notebooks
+
+## install CRAN packages
+install.packages(rpkgs)
+```
+
+#### Load all packages
+
+```{r message=FALSE}
+## list and load all packages
+pkgs <- c(bpkgs, rpkgs)
+for(package in pkgs) {
   do.call("library", list(package))
 }
 ```
-
-Note: if you get a message saying "Error in install.packages : Updating loaded packages" do not worry about this.
 
 ------------------------------------------------------------------------
 
