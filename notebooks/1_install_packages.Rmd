@@ -1,6 +1,6 @@
 ---
 title: "DNA Variant Analysis with R Bioconductor" 
-authors: "Karla Lindquist"
+author: "Karla Lindquist"
 output: html_notebook
 ---
 
@@ -48,16 +48,16 @@ Instructions and notes:
 
 ```{r message=FALSE}
 ## install Bioconductor
-if (!require("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
-BiocManager::install(version = "3.15")  
+# if (!require("BiocManager", quietly = TRUE))
+#     install.packages("BiocManager")
+# BiocManager::install(version = "3.15")  
 
 ## list Bioconductor packages
 bpkgs <- c("GEOquery","org.Mm.eg.db","GenomeInfoDbData","TxDb.Mmusculus.UCSC.mm10.knownGene","Mus.musculus","BiocStyle","limma","edgeR","RColorBrewer","gplots","gage","clusterProfiler","ReactomePA","GOSemSim","DOSE","enrichplot")
 ## note: some may not be necessary to follow along in the workshop (more for demo purposes)
 
 ## install Bioconductor packages
-BiocManager::install(bpkgs, force = TRUE) 
+# BiocManager::install(bpkgs, force = TRUE) 
 
 
 ## list CRAN packages
@@ -65,7 +65,7 @@ rpkgs <- c("ggplot2","here","cli","R.utils","rmarkdown","knitr","utf8")
 ## note: some but not all may need to install utf8 to get all Bioconductor packages to install; rmarkdown and knitr are only needed if you are using R notebooks
 
 ## install CRAN packages
-install.packages(rpkgs)
+# install.packages(rpkgs)
 ```
 
 #### Load all packages

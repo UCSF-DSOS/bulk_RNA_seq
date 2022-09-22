@@ -1,13 +1,12 @@
 ---
 title: "Perform differential expression analysis" 
-authors: "Karla Lindquist"
-date: "7/27/2021"
+author: "Karla Lindquist"
 output: html_notebook
 ---
 
 #### *Objective 7. Perform differential expression analysis*
 
-Packages used in this notebook: `limma`, `RColorBrewer`. First verify that they are installed and loaded.
+Packages used in this notebook: `limma`, `RColorBrewer`. Make sure these packages are installed and loaded.
 
 ------------------------------------------------------------------------
 

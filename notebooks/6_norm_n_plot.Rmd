@@ -1,68 +1,103 @@
 ---
 title: "Normalize and plot expression" 
-authors: "Karla Lindquist"
-date: "7/26/2021"
+author: "Karla Lindquist"
 output: html_notebook
 ---
 
 #### *Objective 5. Normalize the filtered expression data and plot*
 
-Packages used in this notebook: `edgeR`, `RColorBrewer`. First verify that they are installed and loaded.
+Packages used in this notebook: `edgeR`, `RColorBrewer`. Make sure these packages are installed and loaded.
 
 ------------------------------------------------------------------------
 
-Now we should normalize the filtered expression data. This is achieved by dividing each expression value by the total or sum of all expression values on the array. Simply put, this just gets everything on a similar scale. We'll demonstrate this below. Just like with estimating and filtering expression, there are a number of different methods for normalization. There are also other R packages to do this and to be able to compare normalization methods, e.g. the [NormExpression](https://www.frontiersin.org/articles/10.3389/fgene.2019.00400/full) package (Wu et al. 2019).
+Now we should normalize the filtered expression data. This is achieved by dividing each expression value by the total or sum of all expression values on the array. Simply put, this just gets everything on a similar scale. We'll demonstrate this below. Just like with estimating and filtering expression, there are a number of different methods for normalization.
 
-For now, we'll use the `calcNormFactors()` from the `edgeR` package.
+There are also other R packages to do this and to be able to compare normalization methods, e.g. the [NormExpression](https://www.frontiersin.org/articles/10.3389/fgene.2019.00400/full) package (Wu et al. 2019). A quote from the Wu et al. paper describing the package:
 
-Our normalized values can go in the `norm.factors` column of the samples part of our filtered DGEList object `dge_sub` which are all equal to 1 by default:
+*"NormExpression provides a framework and a fast and simple way for researchers to select the best method for the normalization of their gene expression data based on the evaluation of different methods (particularly some data-driven methods or their own methods) in the principle of the consistency of metrics and the consistency of datasets."*
+
+For now, we'll use the `calcNormFactors()` from the `edgeR` package since we are using a lot of other functions from `edgeR`, but I encourage you to try multiple methods using the `NormExpression` package.
+
+Our normalized values will go in the `norm.factors` column of the samples part of our filtered DGEList object `dge_sub` , which are all equal to 1 by default:
 
 ```{r}
 dge_sub$samples
+```
+
+Before we normalize, let's create boxplots of the un-normalized but filtered log2(CPM) values in `log2cpm_sub` for each sample.
+
+```{r}
+boxplot(log2cpm_sub, 
+    las=2, 
+    col=col, 
+    main="")
+title(main="Un-normalized data",ylab="Log2(CPM)")
+```
+
+So this isn't too surprising because in the previous step we saw that the samples all have a similar, normal-looking distribution. So in order to illustrate the impact of normalizing when you have, say some samples that looks very different.
+
+To illustrate this point, I will artificially change scale on the first 2 columns of the raw filtered counts by reducing the counts by 5% for first sample, increase by 500% for second. I will then re-calculate the log2(CPM) values after doing messing them up (we'll call this `log2cpm_mess`. This will better allow us to see the effects of the normalization in less well-behaved samples.
+
+```{r}
+dge_sub$counts[,1] <- dge_sub$counts[,1]*0.05 ## reduce counts for sample 1 by 5%
+dge_sub$counts[,2] <- dge_sub$counts[,2]*5 ## increase counts for sample 2 by 500%
+ 
+log2cpm_mess <- cpm(dge_sub, log=TRUE) ## re-calculate the log2cpm
+```
+
+OK now let's see that plot again after artificially messing up a couple of samples.
+
+```{r}
+boxplot(log2cpm_mess, 
+    las=2, 
+    col=col, 
+    main="")
+title(main="Un-normalized data",ylab="Log2(CPM)")
 ```
 
 ------------------------------------------------------------------------
 
 ##### Normalize using the trimmed mean (TMM) method
 
-We will use this method for starters. See the help file for `calcNormFactors` - you could also try the other methods and compare their impact on downstream analysis. Basically the TMM method accounts for different library sizes between the samples.
+As mentioned above there are different methods and you can try more than one, but we will use the TMM method for now. Once you know how to apply one method it is not very hard to try others. The TMM method accounts for different library sizes between the samples. Let's apply it and then look at the values in the norm.factors column. These are the "adjustment" values if you will. We will create a new object called `dge_sub_norm` (starting with the filtered data).
 
 ```{r}
 ?calcNormFactors
 dge_sub_norm <- calcNormFactors(dge_sub, method = "TMM")
 dge_sub_norm$samples
-dge_sub$samples
 ```
 
-**Question:** Can anyone tell us how to access the library sizes for each sample from the `dge` object?
-
-```{r}
-# view library sizes for each sample
-```
+So now norm.factors column of our new `` dge_sub_norm` `` object hs different values than before where they were all = 1 in `dge_sub`. This doesn't do anything to our CPM values yet though - we need to re-calculate these after getting these norm.factors.
 
 ------------------------------------------------------------------------
 
-##### Alter a couple of samples and then re-normalize to demonstrate the effect
+##### Calculate and plot normalized CPM values
 
-Let's see what happens when we mess up the scale on the first 2 columns of the raw filtered counts (reduce counts by 5% for first sample, increase by 500% for second). We will then re-calculate the log2(CPM) values after doing this. This will better allow us to see the effects of the normalization in the plots below.
+To re-calculate CPM using the norm.factor values, we apply the `cpm()` function again. Before we had `log2cpm_sub` (filtered un-normalized data) and now we are creating `log2cpm_norm` (filtered normalized data).
 
 ```{r}
-dge_sub$counts[,1] <- dge_sub$counts[,1]*0.05
-dge_sub$counts[,2] <- dge_sub$counts[,2]*5
-
-log2cpm_unorm <- cpm(dge_sub, log=TRUE)
 log2cpm_norm <- cpm(dge_sub_norm, log=TRUE)
 ```
 
-Now we can make side-by-side box plots to show the differences before and after normalization (especially for the two samples that we messed up intentionally).
+Now let's create boxplots showing the normalized distribution of the log2(CPM) values.
 
 ```{r}
-par(mfrow=c(1,2))
-boxplot(log2cpm_unorm, 
+boxplot(log2cpm_norm, 
     las=2, 
     col=col, 
     main="")
-title(main="A. Unnormalized data",ylab="Log2(CPM)")
+title(main="Normalized data",ylab="Log2(CPM)")
+```
+
+If you want to put these side-by-side you can use that `par()` function like we did in the last notebook.
+
+```{r}
+par(mfrow=c(1,2))
+boxplot(log2cpm_mess, 
+    las=2, 
+    col=col, 
+    main="")
+title(main="A. Un-normalized data",ylab="Log2(CPM)")
 
 boxplot(log2cpm_norm, 
     las=2, 

@@ -1,19 +1,20 @@
 ---
 title: "Download RNA-seq files from GEO" 
-authors: "Karla Lindquist"
-date: "7/26/2021"
+author: "Karla Lindquist"
 output: html_notebook
 ---
 
 #### *Objective 1. Download RNA-seq files from GEO*
 
-Packages used in this notebook: `GEOquery`, `edgeR`. First verify that these are installed and loaded.
+Packages used in this notebook: `GEOquery`, `edgeR`. Make sure these packages are installed and loaded.
 
 ------------------------------------------------------------------------
 
-##### Read GEO data
+##### Read publicly available data from the Gene Expression Omnibus (GEO) repository
 
-Read data using a RStudio project directory (assumes you have a project folder with subfolders called "notebooks" for your notebooks/scripts and another subfolder called "data").
+We will be using data from a study titled: "**Transcriptome profiling of purified mouse mammary stem, progenitor and mature cell populations" (**GEO accession [GSE63310](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE63310)). Take some time to review the summary page. Samples were sequenced on the Illumina HiSeq 2000 platform.
+
+First, make sure that your working directory is the main project directory which should contain a data directory. Whether you use files downloaded with R (as shown below) or if you manually downloaded the files, we will assume that you are starting from the main project directory. We will assign the project directory to an object called `projdir` so that we don't have to type the whole path every time.
 
 ```{r}
 getwd() ## confirm that your working directory is the "notebooks" folder
@@ -21,9 +22,7 @@ projdir <- sub("notebooks", "", getwd()) ## this removes the "notebooks" part of
 projdir ## confirm this is your main project directory
 ```
 
-The files we will be using for this are from the GEO database, accession [GSE63310](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE63310):
-
-Retreive the raw RNA-seq files using the GEO accession. Usually these are either provided in CEL format (Affymetrix/Thermo Fisher arrays), or other formats such as plain TXT files (other platforms). In this case we will be using TXT files.
+Retrieve the raw RNA-seq files using the GEO accession number for our dataset (GSE63310). These are usually provided in plan text files. This function `getGEOSuppFiles()` will detect the format. We will call this object `gse` which stands for GEO Series (GSE) and is used as an acronym used by the NCBI GEO repository.
 
 ```{r}
 ?getGEOSuppFiles
@@ -31,31 +30,50 @@ Retreive the raw RNA-seq files using the GEO accession. Usually these are either
 gse <- getGEOSuppFiles(GEO = "GSE63310", baseDir=paste0(projdir, "data"))
 ```
 
-Note that this created a sub-directory with the accession name and downloaded a .tar file, which we will unpack into our main data directory.
+Take a look at the data folder in your project directory now. Unless you had files in there already, the only thing you should see is another directory within it called GSE63310. Within that, you should see a .tar file, which we will now unpack into our main data directory. You can create the path and filename by using the `paste0` function to string parts of the directory together.
+
+```{r}
+## check that path is correct for the untar() function to find the .tar file
+paste0(projdir, "data", "/GSE63310/GSE63310_RAW.tar")
+```
+
+Use the code above as the argument to the `untar()` function. If this is successful there should be no output in the console/notebook.
 
 ```{r}
 untar(tarfile=paste0(projdir, "data", "/GSE63310/GSE63310_RAW.tar"),
       exdir=paste0(projdir, "data"))
 ```
 
-We will be analyzing 9 of the 11 samples, all in separate files.
+Move up to the data directory. You should see all the samples in .txt.gz files now. We will be analyzing 9 of the 11 samples (each sample is in a separate file). You can find out more from the GEO website about this study, we will be selecting the 9 primary cell types studied: *basal* cells, *luminal progenitor (LP)* cells, and *mature luminal-enriched (ML)* cells. Each cell type has 3 samples.
+
+Since there are just 9 samples, I will type these filenames out and assign them to a character vector called `files`. Then I will store the corresponding cell types in another character vector called `celltypes`. We will use this in the annotation notebook.
 
 ```{r}
-files <- c("GSM1545535_10_6_5_11.txt", "GSM1545536_9_6_5_11.txt", "GSM1545538_purep53.txt", "GSM1545539_JMS8-2.txt", "GSM1545540_JMS8-3.txt", "GSM1545541_JMS8-4.txt", "GSM1545542_JMS8-5.txt", "GSM1545544_JMS9-P7c.txt", "GSM1545545_JMS9-P8c.txt")
+files <- c("GSM1545535_10_6_5_11.txt", ## LP 
+           "GSM1545536_9_6_5_11.txt",  ## ML
+           "GSM1545538_purep53.txt",   ## basal
+           "GSM1545539_JMS8-2.txt",    ## basal
+           "GSM1545540_JMS8-3.txt",    ## ML
+           "GSM1545541_JMS8-4.txt",    ## LP
+           "GSM1545542_JMS8-5.txt",    ## basal
+           "GSM1545544_JMS9-P7c.txt",  ## ML
+           "GSM1545545_JMS9-P8c.txt")  ## LP
+celltypes <- c("LP", "ML", "Basal", "Basal", "ML", "LP", "Basal", "ML", "LP")
 ```
 
 ------------------------------------------------------------------------
 
 ##### Unpack and decompress files
 
+We are now going to unzip the files one by one so we can look at them. Since there are only 9 we can use a for loop (if you have a lot more files or very large files, then you may want to use some more efficient method).
+
 ```{r}
-files
 for(f in paste(files, ".gz", sep="")) {
     gunzip(paste0(projdir, "data/", f), overwrite=TRUE)
 }
 ```
 
-We could open any of these in a text editor, but let's read the first file into a data frame so we can take a look at it in R.
+We could open any of these in a text editor since they are small, but let's read the *first* file into a data frame so we can take a look at it in R. We can access the first file by using the character vector's first index with `files[1]`.
 
 ```{r}
 files[1]
@@ -65,17 +83,24 @@ head(f1)
 tail(f1)
 ```
 
-As we can see, this dataframe has three columns: the gene ID (Entrez), length of the gene, and read counts from the run.
+As we can see, this is a data frame with three columns: the gene ID (ENTREZID), length of the gene, and read counts from the run.
 
 ------------------------------------------------------------------------
 
 ##### Create a digital gene expression (DGE) object
 
-Now we'll create a DGEList object which will contain data from all files. This requires us to indicate which columns represent the gene names and raw read counts. This assumes there is only one gene per row (no duplicates).
+Now we will create a `DGEList` object which will contain data from all 9 files. This requires us to indicate which columns represent the gene names and raw read counts. This assumes there is only one gene per row (no duplicates). Take a look at the `readDGE()` help file. This function is from the `edgeR` package. Note that you can specify which columns to read (we just want the genes and counts), which is important because in the filter and normalization steps to follow, it will just be working on the counts. You can also apply sample group names (the latter are stored in the `celltypes` object that we created above).
 
 ```{r}
 ?readDGE
 
-dge <- readDGE(files=files, path=paste0(projdir, "data"), columns=c(1,3))
+dge <- readDGE(files = files, path=paste0(projdir, "data"),
+               columns = c(1,3), ## column 1 has the genes, column 3 has the counts
+               group = celltypes)
+```
+
+If all goes well you will not see any output in the console. You can inspect the components of the `dge` object by expanding/opening it from the Environment window. Or you can just type `dge` to see the first few rows and to confirm that the files are associated with the right sample groups.
+
+```{r}
 dge
 ```

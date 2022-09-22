@@ -1,51 +1,36 @@
 ---
 title: "Annotate the samples" 
-authors: "Karla Lindquist"
-date: "7/26/2021"
+author: "Karla Lindquist"
 output: html_notebook
 ---
 
 #### *Objective 2. Annotate the samples*
 
-Packages used in this notebook: `edgeR`, `org.Mm.eg.db`. First verify that these are installed and loaded.
+Packages used in this notebook: `edgeR`, `org.Mm.eg.db`. Make sure these packages are installed and loaded.
 
 ------------------------------------------------------------------------
 
-First, let's read in all of the files that we left out the first time around. In Objective 1 we created a vector of filenames stored in the `files` object. It is assumed that this object is still in your environment. If it is not found then you need to re-create it.
+As seen in the previous notebook, the `readDGE()` function from the `edgeR` package conveniently reads all of the files at once. Let's take another look at this object that we named `dge`.
 
 ```{r}
-files
-```
-
-The `readDGE()` function from the `edgeR` package conveniently reads all of the files at once. Let's take another look at this object that we named simply `dge`. Re can re-run the code to recreate this.
-
-```{r}
-dge <- readDGE(files=files, path=paste0(projdir, "data"), columns=c(1,3))
-
 dge
 ```
 
-------------------------------------------------------------------------
-
-##### Label the sample groups
-
-Now we need to indicate what the different sample groups are. In this case we'll be able to identify these groups by looking at the Samples section in GEO ([GSE63310](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE63310)). In our own experimental data, we'd already have this information by virtue of designing the experiment ourselves.
-
-In this case we have 3 groups: LP (luminal progenitor), ML (mature luminal), and Basal epithelial cells.
-
-Let's add the sample annotations to the **group** column of the DGEList object `dge`.
+You can also look at the first few rows of the raw counts which is in a matrix, so you can access the values using the `$` operator.
 
 ```{r}
-dge$samples$group <- as.factor(c("LP", "ML", "Basal", "Basal", "ML", "LP", "Basal", "ML", "LP"))
-dge$samples
+names(dge)
+class(dge$counts)
+head(dge$counts)
 ```
+
+------------------------------------------------------------------------
 
 ##### Label the gene names
 
-Now let's look at the raw counts associated with each gene. The counts part of the DGEList contains gene names (ENTREZIDs) in rows and sample names in columns. You can use the `rownames` function on this object to create a vector of all gene names.
+The counts part of the DGE object contains gene names as ENTREZIDs in rows and sample or file names in columns. You may want to convert these ENTREZIDs to gene symbols instead, which are easier to read. You can use the `rownames` function on the `dge` object to create a vector of ENTREZIDs that we can then translate to symbols.
 
 ```{r}
-head(dge$counts)
 dge_ids <- rownames(dge)
 
 head(dge_ids) ## look at first 6 gene names
@@ -53,30 +38,33 @@ head(dge_ids) ## look at first 6 gene names
 length(dge_ids) ## find out how many genes are represented 
 ```
 
-Now say we want to get gene SYMBOLS as well - we need this information from the mouse genome database `org.Mm.eg.db`. We're able to do this by using the mouse genome info this is built into the `AnnotationDbi` package that comes with Bioconductor. Note the use of `keys=dge_ids` here (we wouldn't want to type them all out since this is a long vector). We will call the new vector with SYMBOLS `gene_ids`.
+To annotate the data with gene SYMBOLS instead of ENTREZIDs, we need to use the mouse genome database `org.Mm.eg.db` since our samples come from mice.
+
+Let\'s use the `select()` function from the `AnnotationDbi` package (comes with Bioconductor). Note that there are multiple packages that support a function with the same name. We want to look at the one from the package, so we will call up the help file from that one with `?AnnotationDbi::select`. Take some time to understand this function - it is used a lot with Bioconductor packages.
+
+Note the use of `keys = dge_ids` here (we wouldn't want to type them all out since this is a long vector). We will create a new vector but using SYMBOLS instead of ENTREZIDs, and we'll call this `gene_ids`.
 
 ```{r}
 ?AnnotationDbi::select
 gene_ids <- AnnotationDbi::select(org.Mm.eg.db, 
-    keys=dge_ids, 
-    keytype="ENTREZID",
-    columns=c("SYMBOL"))
+    keys = dge_ids, 
+    keytype = "ENTREZID",
+    columns = "SYMBOL")
 head(gene_ids)
 ```
 
-Note: 'select()' returned 1:1 mapping between keys and columns is what we are expecting here - there should be a 1:1 mapping between ENTREZIDs and gene SYMBOLS!
-
-Question: Can you think of situations where you might see a 1:many mapping (hint: you can map between genes and other types of features that go along with them other than their names).
+Note: `select()` returned 1:1 mapping between keys and columns is what we are expecting here - there should be a 1:1 mapping between ENTREZIDs and gene SYMBOLs, so this is good. If you get 1:many or many:1 then you want to make sure you understand why ... e.g. this can happen if you are mapping genes names to multiple transcripts.
 
 ------------------------------------------------------------------------
 
-Now we can add these identifiers to the DGEList object in addition to the samples and counts.
+Now, we can add these identifiers to our `dge` count matrix by re-assigning the row names with SYMBOLs from our `gene_ids` object.
 
 ```{r}
-names(dge)
+head(dge$counts)
+head(gene_ids)
 ```
 
 ```{r}
-dge$gene_ids <- gene_ids
-names(dge)
+rownames(dge$counts) <- gene_ids$SYMBOL
+dge
 ```

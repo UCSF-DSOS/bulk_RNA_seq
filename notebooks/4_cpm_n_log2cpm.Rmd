@@ -1,44 +1,30 @@
 ---
 title: "Estimate expression levels" 
-authors: "Karla Lindquist"
-date: "7/26/2021"
+author: "Karla Lindquist"
 output: html_notebook
 ---
 
 #### *Objective 3. Calculate expression as read counts/million (CPM) and log2(CPM)*
 
-Packages used in this notebook: `edgeR`. First verify that it is installed and loaded.
+Packages used in this notebook: `edgeR`. Make sure this package is installed and loaded.
 
 ------------------------------------------------------------------------
 
 ##### Comments on measures used to estimate expression levels from raw read counts
 
-We will convert our raw counts into counts per million (CPM). We will also be calculating log2 counts/million, log2(CPM). This isn't necessarily the best way to estimate expression, but we will use it for purposes of demonstration and since it works with this data and for the purposes of comparing the samples in this experiment. The subsequent steps demonstrated in this workshop would be the same using other measures of expression.
+We will convert our raw counts into counts per million (CPM). We will also be calculating log2 counts/million, log2(CPM). This is related to expression. It isn't necessarily the best measurement to use but it's the simplest one. You want to become familiar with the different ways of measuring expression and choose the best one for your data.
 
-Other (more common) measures to estimate expression from raw counts are TPM, RPKM, and FPKM. For more discussion about this, see this article by Harold Pimentel called [What the FPKM? A review of RNA-Seq expression units](https://haroldpimentel.wordpress.com/2014/05/08/what-the-fpkm-a-review-rna-seq-expression-units/)! Here are a few excerpts from this article to summarize:
+Other measures to estimate expression from raw counts that you may hear about are RPKM and FPKM. For more discussion about this, see this article by Harold Pimentel called [What the FPKM? A review of RNA-Seq expression units](https://haroldpimentel.wordpress.com/2014/05/08/what-the-fpkm-a-review-rna-seq-expression-units/). Here are a few excerpts from this article to summarize:
 
 -   Counts per million (CPM) mapped reads are counts scaled by the number of fragments you sequenced (![N](https://s0.wp.com/latex.php?latex=N&bg=ffffff&fg=000000&s=0&c=20201002)) times one million.
-
--   Transcripts per million (TPM) is a measurement of the proportion of transcripts in your pool of RNA.
 
 -   Reads per kilobase of exon per million reads mapped (RPKM) or the more generic FPKM (substitute reads with fragments) are essentially the same thing. Contrary to some misconceptions, FPKM is not 2 \* RPKM if you have paired-end reads. FPKM == RPKM if you have single-end reads, and saying RPKM when you have paired-end reads is just weird, so don't do it :).
 
 ------------------------------------------------------------------------
 
-OK moving along, let's take another look at part of the first raw file (which is tab-separated).
-
-```{r}
-f1[1]
-f1 <- read.delim(file=paste0(projdir, "data/", files[1]))
-dim(f1)
-head(f1)
-```
-
-------------------------------------------------------------------------
-
 ##### Calculate counts per million (CPM) and log-transform
 
-The `cpm()` function from the `edgeR` package calculates CPM values using the DGEList object that we created in Objective 2. It can also calculate log2(CPM) values.
+The `cpm()` function from the `edgeR` package calculates CPM values using the `dge` object that we have been working with. It can also calculate log2(CPM) values, which we will do by adding the log argument.
 
 ```{r}
 ?cpm
@@ -46,13 +32,19 @@ cpm <- cpm(dge)
 log2_cpm <- cpm(dge, log=TRUE)
 ```
 
-Take a look at raw counts, raw CPM, and log2(CPM) values to make sure all looks good.
+Take a look at raw counts, raw CPM, and log2(CPM) values.
 
 ```{r}
-head(dge$counts)
-head(cpm)
-head(log2_cpm)
-View(dge)
+head(dge$counts) ## raw read counts
+head(cpm) ## counts per million mapped reads
+head(log2_cpm) ## log-transformed cpm
 ```
 
-Note: when a raw count is zero, the `cpm()` function will add the average of the counts to avoid talking the log of zero, which is not a number. We'll be filtering these out anyway.
+Note: when a raw count is zero, the `cpm()` function will apply a pseudocount to avoid talking the log of zero, which is not a number. We'll be filtering these out anyway.
+
+Let's look at the distribution of each with simple histograms. The log transformation just makes the non-0 values more normally distributed which can simplify statistical testing of differences between sample types (more on this later).
+
+```{r}
+hist(cpm)
+hist(log2_cpm)
+```

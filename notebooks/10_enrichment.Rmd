@@ -1,13 +1,12 @@
 ---
 title: "Perform enrichment and pathway analysis" 
-authors: "Karla Lindquist"
-date: "7/27/2021"
+author: "Karla Lindquist"
 output: html_notebook
 ---
 
 #### *Objective 9. Perform enrichment and pathway analysis*
 
-Packages used in this notebook: `gage`, `pathview`. First verify that they are installed and loaded.
+Packages used in this notebook: `gage`, `pathview`. Make sure these packages are installed and loaded.
 
 ------------------------------------------------------------------------
 

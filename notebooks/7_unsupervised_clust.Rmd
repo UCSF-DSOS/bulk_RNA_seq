@@ -1,13 +1,12 @@
 ---
 title: "Perform unsupervised clusetering" 
-authors: "Karla Lindquist"
-date: "7/27/2021"
+author: "Karla Lindquist"
 output: html_notebook
 ---
 
 #### *Objective 6. Perform unsupervised clustering of expression data*
 
-Packages used in this notebook: `limma`, `RColorBrewer`. First verify that they are installed and loaded.
+Packages used in this notebook: `limma`, `RColorBrewer`. Make sure these packages are installed and loaded.
 
 ------------------------------------------------------------------------
 
@@ -57,7 +56,7 @@ title(main="Sample groups")
 
 What is this plot telling us? Think variances within and between samples.
 
-What if you were to use the un-normalized data that was perturbed in Objective 5 where sample \#1 (LP) counts were artificially reduced by 5%, and sample \#2 (ML) counts were artificially increased by 500%?
+What if you were to use the un-normalized data that was perturbed in Objective 5 where sample #1 (LP) counts were artificially reduced by 5%, and sample #2 (ML) counts were artificially increased by 500%?
 
 ```{r}
 dge_sub
