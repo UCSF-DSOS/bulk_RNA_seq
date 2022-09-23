@@ -46,7 +46,7 @@ Now compare the size of the original raw count data to the filtered data.
 100 * nrow(dge_sub) / nrow(dge)
 ```
 
-So we're only going to be using \~52% of the data, but when we look at the distribution of the raw and unfiltered data, we see that this helps. We've also set aside most of the data we're filtered out - this `dge_omit` set will be used to demonstrate some key differences in analysis later in the course, but we won't be discussing it until a bit later.
+So we're only going to be using \~52% of the data, but when we look at the distribution of the raw and unfiltered data, we see that this helps.
 
 Now let's plot the raw and filtered data distributions (density) side-by-side. Why? We want to check two things: a) to see if the filtered data is normally distributed and b) to check that the samples have similar distributions. This doesn't tell us which genes have differential expression between the samples but it has implications for the statistical testing to determine this. More on this later.
 
