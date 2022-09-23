@@ -10,7 +10,9 @@ Packages used in this notebook: `gage`, `pathview`. Make sure these packages are
 
 ------------------------------------------------------------------------
 
-The `limma` package can test for enrichment with [Gene Ontology](http://geneontology.org/) (GO) terms with the `goana()` function. It can also test for [Kyoto Encyclopedia of Genes and Genomes](https://www.genome.jp/kegg/) (KEGG) pathways with the `kegga()` function. But there are far better options these days. We will only scratch the surface of this complex topic in this workshop. See the Gladstone website for current offerings, or stay tuned for another workshop like this one coming from the Library!
+The `limma` package can test for enrichment with [Gene Ontology](http://geneontology.org/) (GO) terms with the `goana()` function. It can also test for [Kyoto Encyclopedia of Genes and Genomes](https://www.genome.jp/kegg/) (KEGG) pathways with the `kegga()` function. But there are far better options these days. We will only scratch the surface of this complex topic in this workshop. See the [Gladstone Institute](https://github.com/gladstone-institutes/Bioinformatics-Workshops/wiki) for current enrichment and pathway analysis course offerings (there are several).
+
+For a recent overview of gene set analysis, see this paper "[Fifteen Years of Gene Set Analysis for High-Throughput Genomic Data: A Review of Statistical Approaches and Future Challenges](https://pubmed.ncbi.nlm.nih.gov/33286201/)" by Das, McClain, & Rai (2020).
 
 ------------------------------------------------------------------------
 
@@ -18,14 +20,14 @@ The `limma` package can test for enrichment with [Gene Ontology](http://geneonto
 
 First we will focus on using the `gage` package. See the vignettes for `gage` (run `vignette(package="gage")`) and also this R-bloggers [tutorial](https://www.r-bloggers.com/tutorial-rna-seq-differential-expression-pathway-analysis-with-sailfish-deseq2-gage-and-pathview/) for full pipeline (note they use DESeq2 to start with, so this part is independent of how you got to your list of differentially expressed genes).
 
-The first input to the `gage()` function this is a named vector of log2(fold-change) values (or contrast coefficients), where the names are ENTREZIDs. Let's start by doing a gene set analysis for LP vs. ML. To get these you can use the LPvsML coefficients from the `efit` coefficient matrix.
+The first input to the `gage()` function this is a named vector of log2(Fold-change) coefficients. Let's start by doing a gene set analysis for LP vs. ML. To get these you can use the LPvsML coefficients from the `efit` coefficient matrix.
 
 ```{r}
 ?gage
 head(efit$coefficients)
 
 fold_lpml <- efit$coefficients[, "LPvsML"]
-head(fold_lpml) ## Entrez IDs are retained from the coefficient matrix
+head(fold_lpml) 
 ```
 
 Lets's test for KEGG pathway enrichment in the LP vs. ML samples.
@@ -42,7 +44,24 @@ length(kegg_mouse$kg.sets) ## number of mouse pathways in kegg
 head(kegg_mouse$kg.sets, n=3) ## look at first 3 pathways listed
 ```
 
-The numbers next to the name of the pathway is the KEGG accession number. Now let's test whether any our list of differentially expressed genes in the LP vs. ML samples are enriched with any of these. In other words, are there more than expected by chance? Using the `same.dir` argument gives us separate lists of pathways that are enriched with up-regulated and down-regulated genes in LP vs. ML.
+The numbers next to the name of the pathway is the KEGG accession number. The genes that are members of each pathway are given in ENTREZIDs.
+
+The functions below mostly use ENTREZIDs. Remember we have those for our corresponding gene names stored in an object called `gene_ids` (created in Objective 2).
+
+```{r}
+head(gene_ids)
+```
+
+We can match the ENTREZIDs back into our `fold_lpml` object comparing fold changes for LP vs. ML samples.
+
+```{r}
+head(fold_lpml)
+fold_ids <- gene_ids[gene_ids$SYMBOL %in% names(fold_lpml), ]
+names(fold_lpml) <- fold_ids$ENTREZID
+head(fold_lpml)
+```
+
+Now let's test whether any our list of differentially expressed genes in the LP vs. ML samples are enriched with any of these. In other words, are there more than expected by chance? Using the `same.dir` argument gives us separate lists of pathways that are enriched with up-regulated and down-regulated genes in LP vs. ML.
 
 ```{r}
 ?gage
@@ -94,26 +113,23 @@ head(kegg_met$less, n=3)
 
 ##### Test for Reactome pathway enrichement using ReactomePA
 
-We can also use the \`ReactomePA\` package to do pathway analysis. This package uses a hypergeometric model [(Yu and He)](%5Bhttps://pubmed.ncbi.nlm.nih.gov/26661513/)](<https://pubmed.ncbi.nlm.nih.gov/26661513/>)) to determine whether your list of genes are significantly associated with any Reactome packages. Make sure this package is loaded. You may also want to look through the vignettes for this package using the \`browseVignettes\` function.
+We can also use the [ReactomePA](https://pubmed.ncbi.nlm.nih.gov/26661513/) package (Yu & He, 2016) to do pathway analysis. This package uses a hypergeometric model to determine whether your list of genes are significantly associated with any Reactome packages. Make sure this package is loaded. You may also want to look through the vignettes for this package using the `browseVignettes` function.
 
-For a recent overview of gene set analysis, see this paper by [(Das, McClain, and Rai)](%5Bhttps://pubmed.ncbi.nlm.nih.gov/33286201/).](<https://pubmed.ncbi.nlm.nih.gov/33286201/>).)
-
-We will start by using the `enrichPathway()` function which simply takes a vector of ENTREZIDs as input. Let's say we give it our top 500 differentially expressed gene list. We need to make sure to tell it that we are looking at mouse genome pathways. We can specify a q-value cutoff of 0.1 to determine significance of the enrichment.
+We will start by using the `enrichPathway()` function which simply takes a vector of ENTREZIDs as input. We can use the names of the `fold_lpml` object since we changed them to ENTREZIDs above. We need to make sure to tell it that we are looking at mouse genome pathways. We will a-priori set a q-value cutoff of 0.01 to determine significance of the enrichment. This might take a while.
 
 ```{r}
 ?enrichPathway
 
-dim(top_diff_genes)
-head(top_diff_genes)
+head(names(fold_lpml))
 
-react_pwy <- enrichPathway(gene=top_diff_genes$ENTREZID, qvalueCutoff=0.05, readable=TRUE, organism = "mouse") 
+react_pwy <- enrichPathway(gene=names(fold_lpml), qvalueCutoff=0.01, readable=TRUE, organism = "mouse") 
 
 react_pwy_df <- as.data.frame(react_pwy)
 dim(react_pwy_df)
 react_pwy_df
 ```
 
-So we have 15 pathways that are siginificantly enriched. Again we can look them up by accession numbers ("ID") in the Reactome database, e.g. R-MMU-1500931.
+So we have a lot of pathways that are siginificantly enriched. Again we can look them up by accession numbers ("ID") in the Reactome database, e.g. R-MMU-1500931. You may want to reduce this list ... again I recommend taking one of the Gladstone workshops to learn more about strategies for this.
 
 ------------------------------------------------------------------------
 
@@ -122,19 +138,17 @@ So we have 15 pathways that are siginificantly enriched. Again we can look them 
 There are lots of ways to visualize the results ... here are a few simple plots (saved as .png).
 
 ```{r}
-png(paste0(projdir, "/results/barplot_react.png"), width=960)
+# png(paste0(projdir, "/results/barplot_react.png"), width=960)
 barplot(react_pwy, showCategory = 10)
-dev.off()
+# dev.off()
 
-png(paste0(projdir, "/results/dotplot_react.png"), width=960)
+# png(paste0(projdir, "/results/dotplot_react.png"), width=960)
 dotplot(react_pwy, showCategory = 10)
-dev.off()
+# dev.off()
 ```
 
 ------------------------------------------------------------------------
 
 ##### Resource for learning more about enrichment and pathway analysis
 
-This is a great online resource that I recommend you review on your own. You already have several of these packages installed and loaded from this workshop, so I recommend that you try them out. Happy mining!
-
-<https://yulab-smu.top/biomedical-knowledge-mining-book/>
+We have covered just a few approaches to doing these types of analyses. There is a great online resource called the [Biomedical Knowledge Mining](https://yulab-smu.top/biomedical-knowledge-mining-book/index.html) book by Wu et al (2021) that I recommend you review on your own which covers other approaches and R Bioconductor packages. It gives a good overview and some ideas for other packages you can try.
