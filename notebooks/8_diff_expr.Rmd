@@ -6,15 +6,17 @@ output: html_notebook
 
 #### *Objective 7. Perform differential expression analysis*
 
-Packages used in this notebook: `limma`, `RColorBrewer`. Make sure these packages are installed and loaded.
+Packages used in this notebook: `limma`. Make sure this package are installed and loaded.
 
 ------------------------------------------------------------------------
 
-Here we will be formally testing whether genes are deferentially expressed between the sample groups (LP vs. MP vs. Basal). First we need to do a little set-up which involves creating design and contrast matrices.
+Here we will be formally testing whether genes are deferentially expressed between the sample groups (LP vs. MP vs. Basal). Someone once pointed out that this notebook could be an entire workshop on it's own. So be aware that this is a meaty one and that it may take some independent background study and practice if this is your first exposure to these methods.
 
 ##### Create design and contrast matrices
 
-Let's make a design/model matrix with groups to be compared (this makes dummy variables for each sample indicating which group they belong to). We can do this with the `model.matrix()` function from the `stats` package.
+First we need to do a little set-up which involves creating design and contrast matrices. The purpose of these should become a little more clear once we make them.
+
+Let's make a **design matrix** (also called a model matrix) with groups to be compared. This makes dummy variables (0/1) for each sample indicating which group they belong to. We can do this with the `model.matrix()` function from the `stats` package.
 
 ```{r}
 ?model.matrix
@@ -30,7 +32,9 @@ colnames(design) <- gsub("grps", "", colnames(design))
 design
 ```
 
-We also need a contrast matrix to indicate which groups to compare to each other (reference group has a value of 1, comparison group has a value of -1). We will do all pairwise comparisons. The `makeContrasts()` function is from the `limma` package. We'll have to remember what the labels refer to, i.e. "BasalvsLP" is taking expression levels in Basal samples minus expression levels in the LP samples, etc.
+We also need a **contrast matrix** to indicate which groups to compare to each other. These are coded with the reference group having a value of 1, and the comparison group has a value of -1 for each contrast. It doesn't really matter which gets which code, but you need to keep track because that will tell you which group has higher or lower expression relative to the comparison group.
+
+We will do all pairwise contrasts, or paired sample comparisons. The `makeContrasts()` function is from the `limma` package. We'll have to remember what the labels refer to, i.e. "BasalvsLP" is taking expression levels in Basal samples minus expression levels in the LP samples, etc. So for this contrast, Basal cells are coded 1 (reference group) and LP samples are coded -1 (comparison group).
 
 ```{r}
 ?makeContrasts
@@ -43,50 +47,69 @@ contrast <- makeContrasts(
 contrast
 ```
 
+OK now we are ready to put these into action.
+
 ------------------------------------------------------------------------
 
-##### Combine normalized expression levels with matrices
+##### Combine normalized expression levels with the design matrix
 
-Now we use `voom()` from `limma` to combine log2(CPM) values with the design matrix and to prepare it for modeling at the gene level. Note that the default normalization method for this function is "none". We will keep this default because we have already log-transformed and normalized the values, and stored them in the `dge_sub_norm` object. It calculates weights for each gene.
+We can use the `voom()` function from the `limma` to combine log2(CPM) values with the design matrix and to prepare it for modeling at the gene level. Note that the default normalization method for this function is "none". We will keep this default because we have already filtered and normalized the values, and remember we have stored these in the `dge_sub_norm` object. What this function does is It calculates weights for each gene.
+
+What are these weights and why are we using them? See [this article](https://pubmed.ncbi.nlm.nih.gov/25925576/) by Liu et al. (2015) to understand these better. Voom is a statistical modelling of the heterogeneity at both the sample and observational levels. Sample variance factors are converted to weights and combined with observational level weights obtained from the mean-variance relationship
+of the log2(CPM) values. It is supposed to "powerful analysis and fewer false discoveries". It takes as input the filtered, normalized counts and the design matrix.
 
 ```{r}
 ?voom
 
-dge_voom <- voom(dge_sub_norm, design)
+dge_voom <- voom(counts=dge_sub_norm, design = design)
 dge_voom
 ```
 
 ------------------------------------------------------------------------
 
-##### Compare genes
+##### Compare expression in each sample group versus the others combined
 
-Now we can put this into a linear model where the groups are compared one at a time to the other two groups (combined) for each gene using `lmFit()` from `limma`.
+Now we can put this into a linear model where the groups are compared one at a time to the other two groups (combined) for each gene using `lmFit()` from `limma`. Take a moment to read the details section of the help file so that you understand what this is doing. In a nutshell it is fitting linear models to describe differences between each sample group versus the others. Coefficients describe the direction and magnitude of these differences. The weighted counts from `voom` and the design matrix are used as inputs. We will store our results in an object called `dge_fit`, which will be used below to
 
 ```{r}
 ?lmFit
-dge_fit <- lmFit(dge_voom, design)
+dge_fit <- lmFit(object = dge_voom, design = design)
 dge_fit
 ```
 
-Next we'll use the contrast matrix created above so we can compare the groups to each other (this is what we care about the most).
+So let's first look at this part of the output from the coefficients:
+
+               Basal        LP        ML
+    Xkr4    2.813459 -3.825652 -4.285171
+
+This means that for gene Xkr4, expression levels in Basal cells are 2.8-fold higher than the other two combined. You can actually calculate this manually if you want an extra challenge:)
+
+------------------------------------------------------------------------
+
+##### Compare expression in each pair of samples
+
+Next we will compare the groups to each other individually in pairwise way. So this requires the results of the models run above (in `dge_fit`) and the contrast matrix.
 
 ```{r}
 ?contrasts.fit
 grp_fit <- contrasts.fit(dge_fit, contrasts=contrast)
+grp_fit
 ```
 
-Notice that these grp_fit coefficients are equal to the differences between the coefficients from the dge_fit model above.
+Then let's look at a few coefficients from both sets of results above.
 
 ```{r}
 head(dge_fit$coefficients)
 head(grp_fit$coefficients)
 ```
 
+Notice that out `grp_fit` coefficients are equal to the differences between the coefficients from the `dge_fit` model above. For the Xkr4 gene, Basal cells have a 6.6-fold higher expression than LP cells and a 7.1-fold higher expression than ML cells.
+
 ------------------------------------------------------------------------
 
 ##### Inspect residuals
 
-Just like with any regression modeling, you want to check the assumptions of the model. One assumption is that the variance of the residuals (difference between the model's predicted values and the actual values) are independent of the actual values. We can use the `plotSA` (Sigma vs A) function from the `limma` package.
+Just like with any regression modeling, you want to check the assumptions of the model. One assumption is that the variance of the residuals (difference between the model's predicted values and the actual values) are independent of the actual values. We can use the `plotSA` (Sigma vs A) function from the `limma` package. Review the help file for more information.
 
 ```{r}
 ?plotSA
@@ -94,20 +117,23 @@ Just like with any regression modeling, you want to check the assumptions of the
 plotSA(grp_fit, main="Mean−variance trend")
 ```
 
-This looks pretty good. Why? Would you exclude/filter any genes based on this plot?
+This looks pretty good. Why? We don't want to see any obvious patterns of association between variance (y-axis) and the average expression levels. This is a key assumptions of many linear models, not just in this context. If there is a pattern, e.g. if the variance increases as expression increases or vice verse, that is an indication that the model does not fit very well. If this happens, you may want to investigate possible causes and determine if it might reflect some bias in your measurements, and then either correct it or take a different modeling approach (i.e. not using a linear model).
+
+Would you exclude/filter any genes based on this plot? Hint: some genes have high variance. You might be most interested in these, or not. This depends on what you want to learn and your context.
 
 ------------------------------------------------------------------------
 
 ##### Apply eBayes if necessary
 
-What if you have a strong correlation between residuals and expression levels, e.g. where variance (y-axis) increases with expression? Apply the empirical Bayes method this should make the residual variances independent of the expression levels. The `eBayes()` function is also from `limma`.
+What if you have a strong correlation between residuals and expression levels, e.g. where variance (y-axis) increases with expression, and you suspect this is a bias and you want to correct for it? Applying the empirical Bayes method should make the residual variances independent of the expression levels. The `eBayes()` function is also from `limma`. It "moderates" the standard errors in some cases.
 
 ```{r}
 ?eBayes
-efit <- eBayes(grp_fit)
+efit <- eBayes(fit = grp_fit, trend = TRUE)
+# efit ## if you want to look at all the output
 ```
 
-Just to make sure the eBayes method worked, we can plot the residuals again.
+We can plot the residuals again with a trend line, which in an ideal situation would be a flat horizontal (this is pretty close).
 
 ```{r}
 plotSA(efit, main="Mean−variance trend post-eBayes")
@@ -117,14 +143,18 @@ plotSA(efit, main="Mean−variance trend post-eBayes")
 
 ##### Identify significant genes
 
-Now we can find out how many genes are significantly different between the groups. You can use the result of the eBayes method or the original (in this case, since there isn't much of a difference). The `decideTests` function identifies significantly up- and down-regulated genes in the sample groups after correcting for multiple comparisons.
+Now we can find out how many genes are significantly different between the groups. You can use the result of the eBayes method (`efit`) or the original fit (`grp_fit`). In this case, there isn't much of a difference. The `decideTests` function identifies significantly up- and down-regulated genes in the sample groups after correcting for multiple comparisons. The function uses the Benjamini-Hochberg method by default for the latter, which controls false discovery rates (although you can use other types - see the adjust.method description in the help file.
 
 ```{r}
 ?decideTests
 summary(decideTests(efit))
 ```
 
-We can find the most significant genes (e.g. top 10). The F statistic reflects the magnitude of the overall group differences, and the adjusted p-value corrects for multiple comparisons. It is possible to look at overall statistics for the three contrasts, but we will take a look at the top 10 genes for each contrast one at a time (i.e. Basal vs. LP, Basal vs. ML, LP vs. ML) by using the coef argument.
+------------------------------------------------------------------------
+
+##### Identify top differentially expressed genes
+
+Now let's say we want to find the most significant genes (e.g. the top 10). The F statistic reflects the magnitude of the overall group differences, and the adjusted p-value corrects for multiple comparisons. It is possible to look at overall statistics for the three contrasts, but we will take a look at the top 10 genes for each contrast one at a time (i.e. Basal vs. LP, Basal vs. ML, LP vs. ML) by using the coef argument.
 
 ```{r}
 ?topTable
@@ -149,8 +179,20 @@ topTable(efit, coef=3, number=10, sort.by="p")
 
 ##### Save list of significant genes to a file
 
-If you would like to save the results from the model above, including coefficients, test statistics and p-values, you can use the `write.fit()` function from the `limma` package. In this function, you need to specify if you want to adjust p-values for multiple comparisons (you should, and we will use "BH" here for Benjamini-Hochberg, to match what we did above with topTable, and with what we will do next with visualizations and GSEA). We will also indicate that we want to adjust p-values for each contrast.
+If you would like to save the results from the model above, including coefficients, test statistics and p-values, you can use the `write.fit()` function from the `limma` package. In this function, you need to specify if you want to adjust p-values for multiple comparisons (you should, and we will use "BH" here for Benjamini-Hochberg, to match what we did above with `topTable()`, and with what we will do next with visualizations and GSEA). We will also indicate that we want to adjust p-values for each contrast.
 
 ```{r}
-write.fit(efit, file=paste0(projdir, "results/DEresults.txt"), adjust="BH", method="separate")
+# write.fit(efit, file=paste0(projdir, "results/DEresults.txt"), adjust="BH")
+```
+
+Note that this will complain if you have any duplicated genes in your file, which we do (found out by trying to run `write.fit()` and getting an error). This is often because in the process of annotating with different gene IDs (we went from ENTREZIDs to SYMBOLs in Objective 2), some may not be matched. This will result in NA values for those genes. We can see which rows have NA values for the SYMBOLs in our dataset. We can simply remove the rows with NAs for gene IDs ... you want to be careful about this, maybe do some QC on them first. But we don't have too many of these relatively and so we are not going to worry about it for now.
+
+```{r}
+efit <- efit[which(!is.na(rownames(efit))),]
+```
+
+Now the `write.fit()` function should work.
+
+```{r}
+write.fit(efit, file=paste0(projdir, "results/DEresults.txt"), adjust="BH")
 ```
