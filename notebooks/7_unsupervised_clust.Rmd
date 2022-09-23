@@ -10,36 +10,42 @@ Packages used in this notebook: `limma`, `RColorBrewer`. Make sure these package
 
 ------------------------------------------------------------------------
 
-Now that we have filtered and normalized our expression levels, we will visualize differences between groups of samples. If it appears that there is some clustering of samples, then doing differential expression analysis can follow to formally test these differences.
+Now that we have filtered and normalized our expression levels across samples, we will visualize differences between groups of samples in terms of their average expression levels.
 
-We'll start by assigning different colors to each group of samples (LP, ML, and Basal) in a similar way to what we did in Objective 4.
+We'll start by assigning different colors to each group of samples (LP, ML, and Basal) in a similar way to what we did in Objective 4 (there we had one color/sample, here we have one color/group).
 
 ```{r}
-grps <- dge_sub$samples$group
-col.grp <- grps
-levels(col.grp) <-  brewer.pal(nlevels(col.grp), "Set1") ## assigning a color to each sample group using nlevels(col.grp)
+grps <- dge_sub$samples$group ## these are the group assignments to each sample - just creating the grps object as a shorthand
+grps
+col.grp <- grps ## make a new object to hold assigned colors
+levels(col.grp) <-  brewer.pal(nlevels(col.grp), "Set1") ## assigning a color to each sample group using nlevels(col.grp) ... see ?brewer.pal and ?nlevels for help
 col.grp <- as.character(col.grp)
 col.grp 
-grps
 ```
 
 ------------------------------------------------------------------------
 
-##### Multidimensional scaling
+##### Multidimensional scaling (MDS) and Principal Coordinate (PCoA) Plots
 
-The `plotMDS()` function from the `limma` package shows us a scatterplot where distances between samples represent typical log2(Fold-Change) between the samples for genes that distinguish the samples (see Details in Help file and in the [reference article](https://pubmed.ncbi.nlm.nih.gov/25605792/) for the package).
+First we will do an exploratory analysis by performing unsupervised clustering (i.e. determining whether any of the samples have similar average expression levels, without using actual group labels to guide this analysis). This step is optional, and the results are not feeding in to subsequent analyses, but doing these types of analyses can be useful to scan for patterns before diving into the formal differential expression analysis.
 
-Note that you can save this plot (code is commented out but you can use the `png()` function followed by the plot commands and then `dev.off()`).
+Here, we will use a simple approach here with multidemensional scaling and principal coordinate analysis plots. Similar to principal component analysis plots (PCA), these methods attempt to reduce the number of dimensions when working with many features. This makes it easier to spot patterns. Other dimension reduction techniques that are commonly used in single cell RNA-seq analyses, such as PCA, tSNE, and UMAP. I don't cover the statistics of these methods here but I cover them in a little more in my [scRNA-seq workshop](https://tiny.ucsf.edu/dsiscrnaseq). A good overview of these other types is also provided by this PDF called "[Dimension Reduction: PCA, tSNE, UMAP](https://www.bioinformatics.babraham.ac.uk/training/10XRNASeq/Dimension%20Reduction.pdf)" by Simon Andrews from Babraham Bioinformatics (2020). For more general information about the differences between bulk and single cell RNA-seq, see [Recent Advances in Single-Cell Genomics Techniques](https://courses.ucsf.edu/mod/url/view.php?id=884244) by Dmitry Velmeshev (2019) for a good high-level description.
+
+The `plotMDS()` function from the `limma` package shows us a scatterplot where distances between samples represent typical log2(CPM) between the samples for genes that distinguish the samples (see Details in Help file and in this [reference article](https://pubmed.ncbi.nlm.nih.gov/25605792/) by the package authors, Ritchie et al. (2015)).
+
+If it appears that there is some clustering of samples, then doing differential expression analysis can follow to formally test these differences. The log2(CPM) values have been filtered and normalized and stored in the object `log2cpm_norm`, and should represent an estimate of **log2(Fold Change)** when comparing expression levels between samples. In producing the plot below we will visualize pairwise comparisons for the 500 genes that have the greatest differences between each pair of samples (these are default settings - see `?plotMDS` for more info and other options).
+
+Note that you can save this plot (code is commented out but you can use the `png()` function followed by the plot commands and then `dev.off()`). We will also attach sample numbers (1-9) to the group names so we know which sample comes from which file (e.g. the first sample belongs to the LP group so it will get labeled LP-1, etc).
 
 ```{r}
 ?plotMDS
 
 head(log2cpm_norm)
 
-grps_num <- paste(grps, seq(1:length(grps)), sep="-") ## paste sample # next to group label
+grps_num <- paste(grps, seq(1:length(grps)), sep="-") ## paste sample number (i.e. file order in the files object) next to the group labels
 grps_num
 
-# png(paste0(projdir, "results/MDSplot.png"))
+# png(paste0(projdir, "results/MDSplot.png"))  ## uncomment this line to save a .png image file to your results folder
 par(mfrow=c(1,1))
 plotMDS(log2cpm_norm, 
     labels=grps_num,  ## label with group and sample #
@@ -54,17 +60,17 @@ title(main="Sample groups")
 
 ##### **Discussion**
 
-What is this plot telling us? Think variances within and between samples.
+What is this plot telling us? As mentioned above, the Log2(Fold-Change) is estimated from the log2(CPM) values when comparing samples to each other. This is a principal coordinate plot where we are looking at pairwise comparisons for 500 genes that have the largest standard deviation (most variation) between each pair of samples. The percentages on each axis represent the amount of variance explained by each dimension.
 
-What if you were to use the un-normalized data that was perturbed in Objective 5 where sample #1 (LP) counts were artificially reduced by 5%, and sample #2 (ML) counts were artificially increased by 500%?
+What if you were to use the un-normalized data that was perturbed in Objective 5 where sample #1 (LP) counts were artificially reduced by 5%, and sample #2 (ML) counts were artificially increased by 500%? Let's see!
 
 ```{r}
 dge_sub
-head(log2cpm_unorm)
+head(log2cpm_mess)
 
 # png(paste0(projdir, "results/MDSplot-unnormalized.png"))
 par(mfrow=c(1,1))
-plotMDS(log2cpm_unorm, 
+plotMDS(log2cpm_mess, 
     labels=grps_num, 
     col=col.grp,
     xlab="Log2(Fold-Change)",
@@ -72,3 +78,5 @@ plotMDS(log2cpm_unorm,
 title(main="Sample groups")
 # dev.off()
 ```
+
+Well as expected, the un-normalized samples LP-1 and ML-2 because they deviate from the others so much. So now hopefully you can see why normalization is so important.
